@@ -1,21 +1,12 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+    show defaultTargetPlatform, TargetPlatform;
     
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
-    if (kIsWeb) {
-      return web;
-    }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         return android;
-      case TargetPlatform.iOS:
-        return ios;
-      case TargetPlatform.macOS:
-        return macos;
-      case TargetPlatform.windows:
-        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -27,44 +18,6 @@ class DefaultFirebaseOptions {
         );
     }
   }
-
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDRnHTQj0Ue5Inv-csNxdpdDmQAkaZo6aw',
-    appId: '1:1066202951525:web:28266c3ba16061b51a7b8c',
-    messagingSenderId: '1066202951525',
-    projectId: 'mentorshipapp-7cffc',
-    authDomain: 'mentorshipapp-7cffc.firebaseapp.com',
-    storageBucket: 'mentorshipapp-7cffc.firebasestorage.app',
-    measurementId: 'G-DZFR02B0Q3',
-  );
-
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyC3ZvtvSI5dxY3NtxMdyU5zL-QdYD56u40',
-    appId: '1:1066202951525:ios:fbd34a179d481ce31a7b8c',
-    messagingSenderId: '1066202951525',
-    projectId: 'mentorshipapp-7cffc',
-    storageBucket: 'mentorshipapp-7cffc.firebasestorage.app',
-    iosBundleId: 'com.example.mentorshipapp',
-  );
-
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyC3ZvtvSI5dxY3NtxMdyU5zL-QdYD56u40',
-    appId: '1:1066202951525:ios:fbd34a179d481ce31a7b8c',
-    messagingSenderId: '1066202951525',
-    projectId: 'mentorshipapp-7cffc',
-    storageBucket: 'mentorshipapp-7cffc.firebasestorage.app',
-    iosBundleId: 'com.example.mentorshipapp',
-  );
-
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyDRnHTQj0Ue5Inv-csNxdpdDmQAkaZo6aw',
-    appId: '1:1066202951525:web:2b976fed527158e81a7b8c',
-    messagingSenderId: '1066202951525',
-    projectId: 'mentorshipapp-7cffc',
-    authDomain: 'mentorshipapp-7cffc.firebaseapp.com',
-    storageBucket: 'mentorshipapp-7cffc.firebasestorage.app',
-    measurementId: 'G-6YFXLD85HB',
-  );
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDDujOxnQFcVIrKnsZQsjSnLvrdcrDqCo4',
