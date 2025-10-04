@@ -9,34 +9,30 @@ import 'firebase_options.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; 
 
 const MaterialColor customPrimarySwatch = MaterialColor(
-  0xFF00ADB5, // Primary Color (Teal/Cyan)
+  0xFF00ADB5, 
   <int, Color>{
     50: Color(0xFFE0F7FA),
     100: Color(0xFFB3EBF5),
     200: Color(0xFF80DEEA),
     300: Color(0xFF4DD0E1),
     400: Color(0xFF26C6DA),
-    500: Color(0xFF00BCD4), // Base Teal
+    500: Color(0xFF00BCD4), 
     600: Color(0xFF00ACC1),
     700: Color(0xFF0097A7),
-    800: Color(0xFF00838F), // Used for App Bar
+    800: Color(0xFF00838F), 
     900: Color(0xFF006064),
   },
 );
 
 void main() async {
-  // 1. Initialize Flutter Bindings
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // 2. 🔑 CRITICAL: Load the .env file asynchronously
+
   await dotenv.load(fileName: ".env");
 
-  // 3. Initialize Firebase (This uses the generated firebase_options.dart)
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // 4. Run the application
   runApp(
     MultiProvider(
       providers: [
@@ -57,12 +53,10 @@ class PeerMentorApp extends StatelessWidget {
       title: 'PeerPath',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // UI FIX: Use custom primary swatch
         primarySwatch: customPrimarySwatch,
         primaryColor: customPrimarySwatch.shade800,
-        // UI FIX: Soft pastel background color inspired by the theme
         scaffoldBackgroundColor: const Color(0xFFF0F5F5), 
-        cardColor: Colors.white, // Crisp white cards
+        cardColor: Colors.white,
         appBarTheme: AppBarTheme(
           elevation: 0,
           centerTitle: true,
@@ -73,7 +67,6 @@ class PeerMentorApp extends StatelessWidget {
             fontWeight: FontWeight.bold
           ),
         ),
-        // UI FIX: Use rounded borders for inputs and buttons
         inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -89,7 +82,7 @@ class PeerMentorApp extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
-            elevation: 3, // Soft lift
+            elevation: 3, 
           ),
         ),
       ),
@@ -98,24 +91,20 @@ class PeerMentorApp extends StatelessWidget {
   }
 }
 
-// ============================================================================
-// MODELS (ADJUSTED TO USER'S FIELDS/CASING)
-// ============================================================================
-
 class UserProfile {
   final String uid;
   final String email;
   final String name;
-  final String role; // 'student' or 'mentor'
+  final String role; 
   final String? university;
   final String? major;
-  final int? graduationyear; // User-specified property
-  final String? currentcompany; // User-specified property
+  final int? graduationyear; 
+  final String? currentcompany; 
   final List<String> interests;
   final List<String> skills;
   final String? location;
-  final bool isverified; // User-specified property
-  final DateTime createdat; // User-specified property
+  final bool isverified;
+  final DateTime createdat; 
 
   UserProfile({
     required this.uid,
@@ -124,13 +113,13 @@ class UserProfile {
     required this.role,
     this.university,
     this.major,
-    int? graduationYear, // Temporary parameter for Firestore mapping
-    String? currentCompany, // Temporary parameter for Firestore mapping
+    int? graduationYear,  
+    String? currentCompany, 
     this.interests = const [],
     this.skills = const [],
     this.location,
-    bool isVerified = false, // Temporary parameter for Firestore mapping
-    required DateTime createdAt, // Temporary parameter for Firestore mapping
+    bool isVerified = false, 
+    required DateTime createdAt, 
   }) : graduationyear = graduationYear,
        currentcompany = currentCompany,
        isverified = isVerified,
@@ -152,7 +141,6 @@ class UserProfile {
       role: map['role'] ?? 'student',
       university: map['university'],
       major: map['major'],
-      // MAPPING: Reading Firestore camelCase keys into Dart properties
       graduationYear: map['graduationYear'] is int ? map['graduationYear'] : null,
       currentCompany: map['currentCompany'] is String ? map['currentCompany'] : null,
       interests: List<String>.from(map['interests'] ?? []),
@@ -170,7 +158,6 @@ class UserProfile {
       'role': role,
       'university': university,
       'major': major,
-      // MAPPING: Writing Dart properties to Firestore camelCase keys
       'graduationYear': graduationyear,
       'currentCompany': currentcompany,
       'interests': interests,
@@ -186,7 +173,7 @@ class MentorshipRequest {
   final String id;
   final String studentId; 
   final String mentorId; 
-  final String status; // 'pending', 'accepted', 'rejected'
+  final String status; 
   final String message;
   final DateTime createdAt; 
 
@@ -224,8 +211,8 @@ class MentorshipRequest {
 class Review {
   final String id;
   final String authorId;
-  final String targetId; // mentor or university/company
-  final String targetType; // 'mentor', 'university', 'company'
+  final String targetId; 
+  final String targetType; 
   final double rating;
   final String title;
   final String content;
@@ -343,7 +330,7 @@ class ProgressTask {
   final String studentId;
   final String mentorId;
   final String description;
-  final String status; // 'pending', 'in_progress', 'completed'
+  final String status; 
   final DateTime assignedAt;
 
   ProgressTask({
@@ -376,10 +363,6 @@ class ProgressTask {
     };
   }
 }
-
-// ============================================================================
-// PROVIDERS
-// ============================================================================
 
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -512,7 +495,6 @@ class MentorshipProvider extends ChangeNotifier {
         .toList();
   }
 
-  // --- Mentorship Requests (Existing) ---
   Future<void> sendMentorshipRequest(String mentorId, String message) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -547,7 +529,6 @@ class MentorshipProvider extends ChangeNotifier {
             .map((doc) => MentorshipRequest.fromMap(doc.data(), doc.id))
             .toList());
   }
-  // ------------------------------------
 
   Future<void> submitReview(Review review) async {
     await _firestore.collection('reviews').add(review.toMap());
@@ -565,7 +546,6 @@ class MentorshipProvider extends ChangeNotifier {
             .toList());
   }
   
-  // --- New: Stories Methods ---
   Future<void> postStory(Story story) async {
     await _firestore.collection('stories').add(story.toMap());
     notifyListeners();
@@ -579,7 +559,6 @@ class MentorshipProvider extends ChangeNotifier {
   }
   
   Stream<List<UserProfile>> getMenteesForMentor(UserProfile mentorProfile) {
-    // FIX: Show all students as potential matches for the Mentor Dashboard
     return _firestore
       .collection('users')
       .where('role', isEqualTo: 'student')
@@ -588,10 +567,7 @@ class MentorshipProvider extends ChangeNotifier {
       .snapshots()
       .map((snapshot) => snapshot.docs.map((doc) => UserProfile.fromMap(doc.data(), doc.id)).toList());
   }
-  
-  // ----------------------------
 
-  // --- New: Chat Methods ---
   String getChatId(String user1, String user2) {
     return user1.compareTo(user2) < 0 ? '${user1}_$user2' : '${user2}_$user1';
   }
@@ -617,9 +593,7 @@ class MentorshipProvider extends ChangeNotifier {
           .map((doc) => ChatMessage.fromMap(doc.data(), doc.id))
           .toList());
   }
-  // -------------------------
-  
-  // --- New: Progress Methods ---
+
   Future<void> assignTask(String studentId, String mentorId, String description) async {
     final task = ProgressTask(
       id: '',
@@ -645,12 +619,7 @@ class MentorshipProvider extends ChangeNotifier {
     await _firestore.collection('progress').doc(taskId).update({'status': status});
     notifyListeners();
   }
-  // -----------------------------
 }
-
-// ============================================================================
-// SCREENS
-// ============================================================================
 
 class LoadingScreen extends StatelessWidget {
   const LoadingScreen({Key? key}) : super(key: key);
@@ -927,7 +896,6 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // UI FIX: Highlighted Welcome Card
             Card(
               elevation: 4,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -960,7 +928,6 @@ class HomeScreen extends StatelessWidget {
               style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: Colors.grey.shade800),
             ),
             const SizedBox(height: 16),
-            // Ensure profile is not null before passing to dashboard widget
             if (profile != null)
               isMentor ? _MentorHomeDashboard(mentorProfile: profile) : _MenteeHomeDashboard()
             else
@@ -972,7 +939,6 @@ class HomeScreen extends StatelessWidget {
               style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: Colors.grey.shade800),
             ),
             const SizedBox(height: 16),
-            // UI FIX: Grid view for quick actions
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
@@ -980,7 +946,6 @@ class HomeScreen extends StatelessWidget {
               mainAxisSpacing: 16,
               crossAxisSpacing: 16,
               children: [
-                // FIX: Removed const keyword from QuickActionCards
                 _QuickActionCard(
                   icon: Icons.search,
                   title: 'Find Mentors',
@@ -1020,15 +985,12 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// --- NEW DASHBOARD SECTIONS ---
-
 class _MentorHomeDashboard extends StatelessWidget {
   final UserProfile mentorProfile;
   const _MentorHomeDashboard({Key? key, required this.mentorProfile}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // Show matching students stream
     return StreamBuilder<List<UserProfile>>(
       stream: Provider.of<MentorshipProvider>(context).getMenteesForMentor(mentorProfile),
       builder: (context, snapshot) {
@@ -1046,7 +1008,6 @@ class _MentorHomeDashboard extends StatelessWidget {
               user: student,  
               isMentor: false,
               onTap: () {
-                // Navigate to a student detail screen (using MentorDetail as template for now)
                 Navigator.push(context, MaterialPageRoute(builder: (_) => MentorDetailScreen(mentor: student)));
               },
             );
@@ -1062,7 +1023,6 @@ class _MenteeHomeDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Show recommended mentors
     return FutureBuilder<List<UserProfile>>(
       future: Provider.of<MentorshipProvider>(context).searchMentors(),
       builder: (context, snapshot) {
@@ -1097,7 +1057,6 @@ class _UserSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // UI FIX: Clean card with subtle shadow
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -1113,7 +1072,7 @@ class _UserSummaryCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   CircleAvatar(
-                    radius: 24, // Smaller avatar for card
+                    radius: 24, 
                     backgroundColor: Theme.of(context).primaryColor,
                     child: Text(
                       user.name[0].toUpperCase(),
@@ -1128,7 +1087,6 @@ class _UserSummaryCard extends StatelessWidget {
                         Text(user.name, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 4),
                         Text(
-                          // Using user's specific properties
                           isMentor  
                             ? 'Works at: ${user.currentcompany ?? 'N/A'}'
                             : '${user.major ?? 'Unknown'} in ${user.university ?? 'Unknown'}',
@@ -1137,7 +1095,6 @@ class _UserSummaryCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // Icon for status/role
                   Icon(user.isverified ? Icons.verified_user : Icons.school, 
                        color: user.isverified ? Colors.blue.shade700 : Colors.grey.shade500,
                        size: 20),
@@ -1150,7 +1107,7 @@ class _UserSummaryCard extends StatelessWidget {
                   runSpacing: 8,
                   children: user.skills.take(3).map((skill) => Chip(
                     label: Text(skill, style: TextStyle(fontSize: 12, color: customPrimarySwatch.shade800)),
-                    backgroundColor: customPrimarySwatch.shade50, // Light colored background for chip
+                    backgroundColor: customPrimarySwatch.shade50,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                   )).toList(),
                 ),
@@ -1178,7 +1135,6 @@ class _QuickActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // UI FIX: Raised card design with clear icon focus
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -1190,7 +1146,7 @@ class _QuickActionCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 36, color: color), // Smaller, colored icon
+              Icon(icon, size: 36, color: color), 
               const SizedBox(height: 12),
               Text(
                 title,
@@ -1246,7 +1202,6 @@ class _SearchScreenState extends State<SearchScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
-            // UI FIX: Input field uses the new InputDecoration theme
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -1255,7 +1210,6 @@ class _SearchScreenState extends State<SearchScreen> {
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.filter_list, color: Colors.grey),
                   onPressed: () {
-                    // Show filter dialog
                   },
                 ),
               ),
@@ -1286,7 +1240,6 @@ class MentorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Uses the generalized summary card with the new styling
     return _UserSummaryCard(
       user: mentor,
       isMentor: true,
@@ -1320,7 +1273,6 @@ class MentorDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // UI FIX: Profile Header Section (Consistent with Theme)
             Container(
               color: Theme.of(context).primaryColor,
               padding: const EdgeInsets.all(30),
@@ -1369,7 +1321,6 @@ class MentorDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Education Section (Placeholder structure)
                   _ProfileSection(
                     title: "Education",
                     children: [
@@ -1381,7 +1332,6 @@ class MentorDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  // Skills Section
                   _ProfileSection(
                     title: "Skills",
                     children: [
@@ -1615,7 +1565,7 @@ class RequestCard extends StatelessWidget {
             FutureBuilder<DocumentSnapshot>(
               future: FirebaseFirestore.instance
                   .collection('users')
-                  .doc(request.studentId) // Use studentId here
+                  .doc(request.studentId) 
                   .get(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1784,7 +1734,6 @@ class MyMentorsScreen extends StatelessWidget {
                     mentorSnapshot.data!.data() as Map<String, dynamic>,
                     request.mentorId,
                   );
-                  // Display the accepted mentor using the stylish card
                   return MentorCard(mentor: mentor); 
                 },
               );
@@ -1814,7 +1763,6 @@ class ProfileScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Profile'),
         actions: [
-          // EDIT PROFILE BUTTON (Already present)
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () {
@@ -1826,22 +1774,18 @@ class ProfileScreen extends StatelessWidget {
               );
             },
           ),
-          // 🛑 LOGOUT BUTTON (RESTORED)
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
-              // This calls the signOut method in the AuthProvider
-              // which clears the user and navigates back to LoginScreen via AuthWrapper.
               await authProvider.signOut();
             },
           ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20), // UI FIX: Increased padding
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // UI FIX: Centered Profile Avatar
             CircleAvatar(
               radius: 60,
               backgroundColor: Theme.of(context).primaryColor,
@@ -1873,8 +1817,7 @@ class ProfileScreen extends StatelessWidget {
               backgroundColor: Theme.of(context).primaryColor,
             ),
             const SizedBox(height: 24),
-            
-            // Education Section
+
             _ProfileSection(
               title: 'Education',
               children: [
@@ -1886,7 +1829,6 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Career Section (Mentor Only)
             if (profile.role == 'mentor') 
               _ProfileSection(
                 title: 'Career',
@@ -1895,8 +1837,6 @@ class ProfileScreen extends StatelessWidget {
                 ],
               ),
             const SizedBox(height: 16),
-
-            // Skills Section
             if (profile.skills.isNotEmpty)
               _ProfileSection(
                 title: 'Skills',
@@ -1913,8 +1853,6 @@ class ProfileScreen extends StatelessWidget {
                 ],
               ),
             const SizedBox(height: 16),
-            
-            // Add other profile details as needed
           ],
         ),
       ),
@@ -1933,7 +1871,6 @@ class _ProfileSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // UI FIX: Elevated card section
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -1968,7 +1905,6 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // UI FIX: Clean info row design
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -2138,8 +2074,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 }
 
-// --- NEW FEATURE SCREENS (Completed Implementation) ---
-
 class StoriesScreen extends StatelessWidget {
   final bool isMentor;
   const StoriesScreen({Key? key, required this.isMentor}) : super(key: key);
@@ -2280,8 +2214,6 @@ class ChatScreen extends StatelessWidget {
     final provider = Provider.of<MentorshipProvider>(context, listen: false);
     final finalChatId = chatId ?? provider.getChatId(currentUserId, recipientId);
     final messageController = TextEditingController();
-
-    // Placeholder for chat list overview
     if (recipientId == 'placeholder_id') {
       return Scaffold(
         appBar: AppBar(title: const Text('My Chats')),
@@ -2298,8 +2230,7 @@ class ChatScreen extends StatelessWidget {
         ),
       );
     }
-    
-    // Actual 1:1 Chat View
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Chat with $recipientName'),
@@ -2452,7 +2383,6 @@ class ProgressScreen extends StatelessWidget {
                   title: Text(task.description, style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey.shade800)),
                   subtitle: Text('Assigned: ${DateFormat('MMM d, yyyy').format(task.assignedAt)} | Status: ${task.status.toUpperCase()}'),
                   onTap: isMentor ? null : () {
-                    // Mentee marks as complete
                     if (!isCompleted) {
                       provider.updateTaskStatus(task.id, 'completed');
                       ScaffoldMessenger.of(context).showSnackBar(
