@@ -1,38 +1,83 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_rating_bar/flutter_rating_bar.dart'; 
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'firebase_options.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart'; 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+// NEW: Centralized routing class
+class AppRouter {
+  static const String authWrapper = '/';
+  static const String main = '/main';
+  static const String editProfile = '/edit_profile';
+  static const String stories = '/stories';
+  static const String chatList = '/chat_list';
+  static const String chat = '/chat';
+  static const String progress = '/progress';
+  static const String mentorDetail = '/mentor_detail';
+
+  static Route<dynamic> generateRoute(RouteSettings settings) {
+    switch (settings.name) {
+      case authWrapper:
+        return MaterialPageRoute(builder: (_) => const AuthWrapper());
+      case main:
+        return MaterialPageRoute(builder: (_) => const MainScreen());
+      case editProfile:
+        return MaterialPageRoute(builder: (_) => const EditProfileScreen());
+      case stories:
+        return MaterialPageRoute(builder: (_) => const StoriesScreen());
+      case chatList:
+        return MaterialPageRoute(builder: (_) => const ChatListScreen());
+      case progress:
+        return MaterialPageRoute(builder: (_) => const ProgressScreen());
+      case mentorDetail:
+        final mentor = settings.arguments as UserProfile;
+        return MaterialPageRoute(builder: (_) => MentorDetailScreen(mentor: mentor));
+      case chat:
+        final args = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(builder: (_) => ChatScreen(
+          recipientId: args['recipientId'],
+          recipientName: args['recipientName'],
+          chatId: args['chatId'],
+        ));
+      default:
+        return MaterialPageRoute(
+          builder: (_) => Scaffold(
+            body: Center(
+              child: Text('No route defined for ${settings.name}'),
+            ),
+          ),
+        );
+    }
+  }
+}
 
 const MaterialColor customPrimarySwatch = MaterialColor(
-  0xFF00ADB5, 
+  0xFF7B4BFF,
   <int, Color>{
-    50: Color(0xFFE0F7FA),
-    100: Color(0xFFB3EBF5),
-    200: Color(0xFF80DEEA),
-    300: Color(0xFF4DD0E1),
-    400: Color(0xFF26C6DA),
-    500: Color(0xFF00BCD4), 
-    600: Color(0xFF00ACC1),
-    700: Color(0xFF0097A7),
-    800: Color(0xFF00838F), 
-    900: Color(0xFF006064),
+    50: Color(0xFFF1EDFF),
+    100: Color(0xFFDCD0FF),
+    200: Color(0xFFC5B0FF),
+    300: Color(0xFFAF8FFF),
+    400: Color(0xFF9B77FF),
+    500: Color(0xFF875FFF),
+    600: Color(0xFF7B4BFF), // Primary color
+    700: Color(0xFF6A38F7),
+    800: Color(0xFF5A26E8),
+    900: Color(0xFF4315D3),
   },
 );
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await dotenv.load(fileName: ".env");
-
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
   runApp(
     MultiProvider(
       providers: [
@@ -54,17 +99,25 @@ class PeerMentorApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: customPrimarySwatch,
-        primaryColor: customPrimarySwatch.shade800,
-        scaffoldBackgroundColor: const Color(0xFFF0F5F5), 
-        cardColor: Colors.white,
-        appBarTheme: AppBarTheme(
+        primaryColor: customPrimarySwatch.shade600,
+        scaffoldBackgroundColor: const Color(0xFFF8F9FA),
+        fontFamily: 'Poppins',
+        cardTheme: CardThemeData(
+          elevation: 2,
+          shadowColor: Colors.grey.withOpacity(0.1),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          margin: const EdgeInsets.only(bottom: 16),
+        ),
+        appBarTheme: const AppBarTheme(
           elevation: 0,
           centerTitle: true,
-          color: customPrimarySwatch.shade800,
-          titleTextStyle: const TextStyle(
-            color: Colors.white, 
-            fontSize: 22, 
-            fontWeight: FontWeight.bold
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.black87,
+          titleTextStyle: TextStyle(
+            color: Colors.black87,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            fontFamily: 'Poppins',
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
@@ -74,37 +127,51 @@ class PeerMentorApp extends StatelessWidget {
           ),
           filled: true,
           fillColor: Colors.white,
+          hintStyle: TextStyle(color: Colors.grey.shade400),
+          contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: customPrimarySwatch.shade600,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
             ),
-            elevation: 3, 
+            elevation: 2,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
         ),
+        bottomNavigationBarTheme: BottomNavigationBarThemeData(
+          backgroundColor: Colors.white,
+          selectedItemColor: customPrimarySwatch.shade600,
+          unselectedItemColor: Colors.grey.shade400,
+          type: BottomNavigationBarType.fixed,
+          showUnselectedLabels: false,
+          elevation: 5,
+        ),
       ),
-      home: const AuthWrapper(),
+      initialRoute: AppRouter.authWrapper,
+      onGenerateRoute: AppRouter.generateRoute,
     );
   }
 }
 
+// Data Models
 class UserProfile {
   final String uid;
   final String email;
   final String name;
-  final String role; 
+  final String role;
   final String? university;
   final String? major;
-  final int? graduationyear; 
-  final String? currentcompany; 
+  final int? graduationyear;
+  final String? currentcompany;
   final List<String> interests;
   final List<String> skills;
   final String? location;
   final bool isverified;
-  final DateTime createdat; 
+  final DateTime createdat;
 
   UserProfile({
     required this.uid,
@@ -113,25 +180,24 @@ class UserProfile {
     required this.role,
     this.university,
     this.major,
-    int? graduationYear,  
-    String? currentCompany, 
+    int? graduationYear,
+    String? currentCompany,
     this.interests = const [],
     this.skills = const [],
     this.location,
-    bool isVerified = false, 
-    required DateTime createdAt, 
-  }) : graduationyear = graduationYear,
-       currentcompany = currentCompany,
-       isverified = isVerified,
-       createdat = createdAt;
-
+    bool isVerified = false,
+    required DateTime createdAt,
+  })  : graduationyear = graduationYear,
+        currentcompany = currentCompany,
+        isverified = isVerified,
+        createdat = createdAt;
 
   factory UserProfile.fromMap(Map<String, dynamic> map, String uid) {
     DateTime safeCreatedAt;
     try {
       safeCreatedAt = (map['createdAt'] as Timestamp).toDate();
     } catch (_) {
-      safeCreatedAt = DateTime.now(); 
+      safeCreatedAt = DateTime.now();
     }
 
     return UserProfile(
@@ -141,13 +207,15 @@ class UserProfile {
       role: map['role'] ?? 'student',
       university: map['university'],
       major: map['major'],
-      graduationYear: map['graduationYear'] is int ? map['graduationYear'] : null,
-      currentCompany: map['currentCompany'] is String ? map['currentCompany'] : null,
+      graduationYear:
+          map['graduationYear'] is int ? map['graduationYear'] : null,
+      currentCompany:
+          map['currentCompany'] is String ? map['currentCompany'] : null,
       interests: List<String>.from(map['interests'] ?? []),
       skills: List<String>.from(map['skills'] ?? []),
       location: map['location'] is String ? map['location'] : null,
       isVerified: map['isVerified'] ?? false,
-      createdAt: safeCreatedAt, 
+      createdAt: safeCreatedAt,
     );
   }
 
@@ -171,11 +239,11 @@ class UserProfile {
 
 class MentorshipRequest {
   final String id;
-  final String studentId; 
-  final String mentorId; 
-  final String status; 
+  final String studentId;
+  final String mentorId;
+  final String status;
   final String message;
-  final DateTime createdAt; 
+  final DateTime createdAt;
 
   MentorshipRequest({
     required this.id,
@@ -211,12 +279,12 @@ class MentorshipRequest {
 class Review {
   final String id;
   final String authorId;
-  final String targetId; 
-  final String targetType; 
+  final String targetId;
+  final String targetType;
   final double rating;
   final String title;
   final String content;
-  final DateTime createdAt; 
+  final DateTime createdAt;
 
   Review({
     required this.id,
@@ -292,7 +360,7 @@ class Story {
   final String title;
   final String content;
   final List<String> tags;
-  final DateTime createdAt; 
+  final DateTime createdAt;
 
   Story({
     required this.id,
@@ -330,7 +398,7 @@ class ProgressTask {
   final String studentId;
   final String mentorId;
   final String description;
-  final String status; 
+  final String status;
   final DateTime assignedAt;
 
   ProgressTask({
@@ -364,10 +432,11 @@ class ProgressTask {
   }
 }
 
+// Providers
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
+
   User? _user;
   UserProfile? _userProfile;
 
@@ -386,6 +455,19 @@ class AuthProvider extends ChangeNotifier {
       }
     });
   }
+  
+  Future<UserProfile?> getUserProfile(String uid) async {
+    try {
+      final doc = await _firestore.collection('users').doc(uid).get();
+      if (doc.exists) {
+        return UserProfile.fromMap(doc.data()!, uid);
+      }
+    } catch (e) {
+      print("Error getting user profile: $e");
+    }
+    return null;
+  }
+
 
   Future<void> _loadUserProfile(String uid) async {
     try {
@@ -395,21 +477,22 @@ class AuthProvider extends ChangeNotifier {
       } else {
         _userProfile = null;
       }
-      notifyListeners(); 
+      notifyListeners();
     } catch (e) {
-      print('CRITICAL PROFILE LOAD ERROR: $e'); 
+      print('CRITICAL PROFILE LOAD ERROR: $e');
       _userProfile = null;
       notifyListeners();
     }
   }
 
-  Future<String?> signUp(String email, String password, String name, String role) async {
+  Future<String?> signUp(
+      String email, String password, String name, String role) async {
     try {
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      
+
       final profile = UserProfile(
         uid: credential.user!.uid,
         email: email,
@@ -417,8 +500,11 @@ class AuthProvider extends ChangeNotifier {
         role: role,
         createdAt: DateTime.now(),
       );
-      
-      await _firestore.collection('users').doc(credential.user!.uid).set(profile.toMap());
+
+      await _firestore
+          .collection('users')
+          .doc(credential.user!.uid)
+          .set(profile.toMap());
       return null;
     } catch (e) {
       return e.toString();
@@ -440,64 +526,59 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> updateProfile(Map<String, dynamic> data) async {
     if (_user == null) return;
-    
+
     await _firestore.collection('users').doc(_user!.uid).update(data);
     await _loadUserProfile(_user!.uid);
-  }
-  
-  Future<void> createDummyUser(String email, String password, String name, String role) async {
-    try {
-      final credential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      
-      final uid = credential.user!.uid;
-
-      final profile = UserProfile(
-        uid: uid,
-        email: email,
-        name: name,
-        role: role,
-        university: role == 'mentor' ? 'State University' : 'Local College',
-        major: role == 'mentor' ? 'Software Engineering' : 'Computer Science',
-        currentCompany: role == 'mentor' ? 'TechCorp' : null,
-        isVerified: role == 'mentor',
-        createdAt: DateTime.now(),
-      );
-
-      await _firestore.collection('users').doc(uid).set(profile.toMap());
-      await _auth.signOut(); 
-      print('Successfully created dummy $role: $email');
-    } catch (e) {
-      print('Error creating dummy user: $e');
-    }
   }
 }
 
 class MentorshipProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  Future<List<UserProfile>> searchMentors({
-    String? major,
-    String? university,
-    List<String>? interests,
-  }) async {
-    Query query = _firestore.collection('users').where('role', isEqualTo: 'mentor');
+  Future<List<UserProfile>> searchMentors({UserProfile? studentProfile}) async {
+    final query = _firestore.collection('users').where('role', isEqualTo: 'mentor');
     
-    if (major != null && major.isNotEmpty) {
-      query = query.where('major', isEqualTo: major);
+    final snapshot = await query.limit(50).get();
+    final mentors = snapshot.docs
+        .map((doc) => UserProfile.fromMap(doc.data(), doc.id))
+        .toList();
+
+    if (studentProfile == null || studentProfile.interests.isEmpty) {
+      return mentors;
     }
     
-    final snapshot = await query.limit(20).get();
-    return snapshot.docs
-        .map((doc) => UserProfile.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-        .toList();
+    mentors.sort((a, b) {
+      final scoreA = _calculateMatchScore(a, studentProfile);
+      final scoreB = _calculateMatchScore(b, studentProfile);
+      return scoreB.compareTo(scoreA);
+    });
+
+    return mentors;
+  }
+  
+  int _calculateMatchScore(UserProfile mentor, UserProfile student) {
+    int score = 0;
+    final studentInterests = student.interests.toSet();
+    
+    for (String skill in mentor.skills) {
+      if (studentInterests.contains(skill)) {
+        score += 2; 
+      }
+    }
+    for (String interest in mentor.interests) {
+      if (studentInterests.contains(interest)) {
+        score += 1;
+      }
+    }
+    return score;
   }
 
   Future<void> sendMentorshipRequest(String mentorId, String message) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+       print("Error: User is not signed in.");
+       return;
+    }
 
     final request = MentorshipRequest(
       id: '',
@@ -507,9 +588,12 @@ class MentorshipProvider extends ChangeNotifier {
       createdAt: DateTime.now(),
       message: message,
     );
-
-    await _firestore.collection('mentorship_requests').add(request.toMap());
-    notifyListeners();
+    try {
+       await _firestore.collection('mentorship_requests').add(request.toMap());
+       print("Mentorship request sent successfully!");
+    } catch (e) {
+        print("Error sending mentorship request: $e");
+    }
   }
 
   Future<void> respondToRequest(String requestId, bool accept) async {
@@ -541,11 +625,10 @@ class MentorshipProvider extends ChangeNotifier {
         .where('targetId', isEqualTo: targetId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Review.fromMap(doc.data(), doc.id))
-            .toList());
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => Review.fromMap(doc.data(), doc.id)).toList());
   }
-  
+
   Future<void> postStory(Story story) async {
     await _firestore.collection('stories').add(story.toMap());
     notifyListeners();
@@ -553,48 +636,104 @@ class MentorshipProvider extends ChangeNotifier {
 
   Stream<List<Story>> getStories({List<String>? tags}) {
     Query query = _firestore.collection('stories').orderBy('createdAt', descending: true);
-    return query.limit(10).snapshots().map((snapshot) => 
-      snapshot.docs.map((doc) => Story.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList()
-    );
+    
+    if (tags != null && tags.isNotEmpty) {
+      query = query.where('tags', arrayContainsAny: tags);
+    }
+
+    return query.limit(20).snapshots().map((snapshot) => snapshot.docs
+        .map((doc) => Story.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList());
   }
   
-  Stream<List<UserProfile>> getMenteesForMentor(UserProfile mentorProfile) {
+  Stream<List<Story>> getStoriesForMentor(String authorId) {
+     return _firestore
+        .collection('stories')
+        .where('authorId', isEqualTo: authorId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => Story.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+            .toList());
+  }
+
+  Stream<List<UserProfile>> getMatchedMenteesForMentor(String mentorId) {
     return _firestore
-      .collection('users')
-      .where('role', isEqualTo: 'student')
-      .orderBy('createdAt', descending: true)
-      .limit(20)
-      .snapshots()
-      .map((snapshot) => snapshot.docs.map((doc) => UserProfile.fromMap(doc.data(), doc.id)).toList());
+        .collection('mentorship_requests')
+        .where('mentorId', isEqualTo: mentorId)
+        .where('status', isEqualTo: 'accepted')
+        .snapshots()
+        .asyncMap((requestSnapshot) async {
+      if (requestSnapshot.docs.isEmpty) {
+        return <UserProfile>[];
+      }
+
+      final studentIds = requestSnapshot.docs
+          .map((doc) => doc.data()['studentId'] as String)
+          .toList();
+
+      if (studentIds.isEmpty) {
+        return <UserProfile>[];
+      }
+      
+      final studentDocs = await _firestore
+          .collection('users')
+          .where(FieldPath.documentId, whereIn: studentIds)
+          .get();
+
+      return studentDocs.docs
+          .map((doc) => UserProfile.fromMap(doc.data(), doc.id))
+          .toList();
+    });
   }
 
   String getChatId(String user1, String user2) {
     return user1.compareTo(user2) < 0 ? '${user1}_$user2' : '${user2}_$user1';
   }
-
-  Future<void> sendMessage(String chatId, String senderId, String text) async {
+  
+  Future<void> sendMessage(String chatId, String senderId, String recipientId, String text) async {
     final message = ChatMessage(
       id: '',
       senderId: senderId,
       text: text,
       timestamp: DateTime.now(),
     );
-    await _firestore.collection('chats').doc(chatId).collection('messages').add(message.toMap());
+    
+    await _firestore
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .add(message.toMap());
+        
+    await _firestore.collection('chats').doc(chatId).set({
+      'members': [senderId, recipientId],
+      'lastMessage': text,
+      'lastMessageAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+  
+  Stream<QuerySnapshot> getChatsForUser(String userId) {
+    return _firestore
+      .collection('chats')
+      .where('members', arrayContains: userId)
+      .orderBy('lastMessageAt', descending: true)
+      .snapshots();
   }
 
   Stream<List<ChatMessage>> getChatMessages(String chatId) {
     return _firestore
-      .collection('chats')
-      .doc(chatId)
-      .collection('messages')
-      .orderBy('timestamp', descending: false)
-      .snapshots()
-      .map((snapshot) => snapshot.docs
-          .map((doc) => ChatMessage.fromMap(doc.data(), doc.id))
-          .toList());
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => ChatMessage.fromMap(doc.data(), doc.id))
+            .toList());
   }
 
-  Future<void> assignTask(String studentId, String mentorId, String description) async {
+  Future<void> assignTask(
+      String studentId, String mentorId, String description) async {
     final task = ProgressTask(
       id: '',
       studentId: studentId,
@@ -609,31 +748,39 @@ class MentorshipProvider extends ChangeNotifier {
 
   Stream<List<ProgressTask>> getMenteeTasks(String menteeId) {
     return _firestore
-      .collection('progress')
-      .where('studentId', isEqualTo: menteeId)
-      .snapshots()
-      .map((snapshot) => snapshot.docs.map((doc) => ProgressTask.fromMap(doc.data(), doc.id)).toList());
+        .collection('progress')
+        .where('studentId', isEqualTo: menteeId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => ProgressTask.fromMap(doc.data(), doc.id))
+            .toList());
   }
-  
+
   Future<void> updateTaskStatus(String taskId, String status) async {
     await _firestore.collection('progress').doc(taskId).update({'status': status});
     notifyListeners();
   }
 }
 
+// UI Screens
 class LoadingScreen extends StatelessWidget {
   const LoadingScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Loading profile data...'),
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Getting things ready...',
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+            ),
           ],
         ),
       ),
@@ -647,16 +794,15 @@ class AuthWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
-    
-    if (!authProvider.isAuthenticated) {
-      return const LoginScreen();
-    }
-    
-    if (authProvider.userProfile == null) {
-      return const LoadingScreen();
+
+    if (authProvider.isAuthenticated) {
+      if (authProvider.userProfile == null) {
+        return const LoadingScreen();
+      }
+      return const MainScreen();
     }
 
-    return const MainScreen();
+    return const LoginScreen();
   }
 }
 
@@ -677,10 +823,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submit() async {
     setState(() => _isLoading = true);
-    
+
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     String? error;
-    
+
     if (_isLogin) {
       error = await authProvider.signIn(
         _emailController.text.trim(),
@@ -694,13 +840,20 @@ class _LoginScreenState extends State<LoginScreen> {
         _selectedRole,
       );
     }
-    
-    setState(() => _isLoading = false);
-    
-    if (error != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
-      );
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+
+      if (error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      } else if (!_isLogin) {
+        Navigator.of(context).pushReplacementNamed(AppRouter.main);
+      }
     }
   }
 
@@ -709,29 +862,28 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 40),
+              const SizedBox(height: 50),
               Icon(
-                Icons.school,
+                Icons.school_rounded,
                 size: 80,
                 color: Theme.of(context).primaryColor,
               ),
               const SizedBox(height: 16),
               Text(
-                'PeerPath',
+                _isLogin ? 'Welcome Back!' : 'Create Account',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).primaryColor,
-                  ),
+                      fontWeight: FontWeight.bold,
+                    ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
-                'Connect with mentors who\'ve been there',
-                style: Theme.of(context).textTheme.bodyMedium,
+                _isLogin ? 'Login to continue your journey.' : 'Let\'s get you started!',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 48),
@@ -739,9 +891,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextField(
                   controller: _nameController,
                   decoration: const InputDecoration(
-                    labelText: 'Full Name',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person),
+                    hintText: 'Full Name',
+                    prefixIcon: Icon(Icons.person_outline_rounded),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -749,9 +900,8 @@ class _LoginScreenState extends State<LoginScreen> {
               TextField(
                 controller: _emailController,
                 decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.email),
+                  hintText: 'Email',
+                  prefixIcon: Icon(Icons.email_outlined),
                 ),
                 keyboardType: TextInputType.emailAddress,
               ),
@@ -759,9 +909,8 @@ class _LoginScreenState extends State<LoginScreen> {
               TextField(
                 controller: _passwordController,
                 decoration: const InputDecoration(
-                  labelText: 'Password',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lock),
+                  hintText: 'Password',
+                  prefixIcon: Icon(Icons.lock_outline_rounded),
                 ),
                 obscureText: true,
               ),
@@ -770,30 +919,27 @@ class _LoginScreenState extends State<LoginScreen> {
                 DropdownButtonFormField<String>(
                   value: _selectedRole,
                   decoration: const InputDecoration(
-                    labelText: 'I am a',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.work),
+                    prefixIcon: Icon(Icons.work_outline_rounded),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'student', child: Text('Student (Looking for guidance)')),
-                    DropdownMenuItem(value: 'mentor', child: Text('Recent Graduate (Want to help)')),
+                    DropdownMenuItem(
+                        value: 'student', child: Text('I am a Student')),
+                    DropdownMenuItem(
+                        value: 'mentor', child: Text('I am a Mentor')),
                   ],
                   onChanged: (value) {
                     setState(() => _selectedRole = value!);
                   },
                 ),
               ],
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: _isLoading ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
                 child: _isLoading
                     ? const SizedBox(
                         height: 20,
                         width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
                       )
                     : Text(_isLogin ? 'Login' : 'Sign Up'),
               ),
@@ -802,10 +948,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: () {
                   setState(() => _isLogin = !_isLogin);
                 },
-                child: Text(
-                  _isLogin
-                      ? 'Don\'t have an account? Sign Up'
-                      : 'Already have an account? Login',
+                child: Text.rich(
+                  TextSpan(
+                    text: _isLogin
+                        ? 'Don\'t have an account? '
+                        : 'Already have an account? ',
+                    style: const TextStyle(color: Colors.grey),
+                    children: [
+                      TextSpan(
+                        text: _isLogin ? 'Sign Up' : 'Login',
+                        style: TextStyle(
+                            color: Theme.of(context).primaryColor,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -845,26 +1002,28 @@ class _MainScreenState extends State<MainScreen> {
     ];
 
     return Scaffold(
-      body: screens[_currentIndex],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: screens,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _changeTab,
-        type: BottomNavigationBarType.fixed,
         items: [
           const BottomNavigationBarItem(
-            icon: Icon(Icons.home),
+            icon: Icon(Icons.home_filled),
             label: 'Home',
           ),
           const BottomNavigationBarItem(
-            icon: Icon(Icons.search),
+            icon: Icon(Icons.search_rounded),
             label: 'Explore',
           ),
           BottomNavigationBarItem(
-            icon: Icon(isMentor ? Icons.notifications : Icons.people),
+            icon: Icon(isMentor ? Icons.notifications_rounded : Icons.people_alt_rounded),
             label: isMentor ? 'Requests' : 'Mentors',
           ),
           const BottomNavigationBarItem(
-            icon: Icon(Icons.person),
+            icon: Icon(Icons.person_rounded),
             label: 'Profile',
           ),
         ],
@@ -889,54 +1048,59 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('PeerPath'),
+        title: const Text('Dashboard'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Welcome back, ${profile?.name ?? "User"}!',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Theme.of(context).primaryColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      isMentor
-                          ? 'Review pending requests and post new stories to guide students.'
-                          : 'Find a mentor and check out the latest student stories.',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.grey.shade700),
-                    ),
-                  ],
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [customPrimarySwatch.shade400, customPrimarySwatch.shade700],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome back, ${profile?.name.split(' ').first ?? "User"}! 👋',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isMentor
+                        ? 'Let\'s inspire the next generation.'
+                        : 'Find the perfect guide for your journey.',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white.withOpacity(0.9)),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
             Text(
-              isMentor ? 'Matching Students' : 'Recommended Mentors',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: Colors.grey.shade800),
+              isMentor ? 'Your Mentees' : 'Top Mentor Matches',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             if (profile != null)
-              isMentor ? _MentorHomeDashboard(mentorProfile: profile) : _MenteeHomeDashboard()
+              isMentor
+                  ? _MentorHomeDashboard(mentorProfile: profile)
+                  : _MenteeHomeDashboard(studentProfile: profile)
             else
               const Center(child: Text("Profile data loading...")),
-            
             const SizedBox(height: 24),
             Text(
               'Quick Actions',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: Colors.grey.shade800),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             GridView.count(
@@ -947,34 +1111,30 @@ class HomeScreen extends StatelessWidget {
               crossAxisSpacing: 16,
               children: [
                 _QuickActionCard(
-                  icon: Icons.search,
-                  title: 'Find Mentors',
-                  color: customPrimarySwatch.shade600,
-                  onTap: () => onTabChange(1),  
+                  icon: Icons.search_rounded,
+                  title: isMentor ? 'Find Students' : 'Find Mentors',
+                  color: Colors.blue.shade400,
+                  onTap: () {
+                     onTabChange(1);
+                  },
                 ),
                 _QuickActionCard(
-                  icon: isMentor ? Icons.article : Icons.amp_stories,
+                  icon: isMentor ? Icons.article_rounded : Icons.amp_stories_rounded,
                   title: isMentor ? 'Post Story' : 'View Stories',
-                  color: Colors.deepOrange.shade400,
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => StoriesScreen(isMentor: isMentor)));
-                  },
+                  color: Colors.orange.shade400,
+                  onTap: () => Navigator.pushNamed(context, AppRouter.stories),
                 ),
                 _QuickActionCard(
-                  icon: Icons.check_circle_outline,
-                  title: 'Progress Tracker',
-                  color: Colors.green.shade600,
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const ProgressScreen()));
-                  },
+                  icon: Icons.check_circle_outline_rounded,
+                  title: isMentor ? 'Student Progress' : 'My Progress',
+                  color: Colors.green.shade400,
+                  onTap: () => Navigator.pushNamed(context, AppRouter.progress),
                 ),
                 _QuickActionCard(
-                  icon: Icons.chat,
+                  icon: Icons.chat_rounded,
                   title: 'My Chats',
                   color: Colors.purple.shade400,
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen(recipientId: 'placeholder_id', recipientName: 'My Contacts')));
-                  },
+                  onTap: () => Navigator.pushNamed(context, AppRouter.chatList),
                 ),
               ],
             ),
@@ -992,24 +1152,29 @@ class _MentorHomeDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<UserProfile>>(
-      stream: Provider.of<MentorshipProvider>(context).getMenteesForMentor(mentorProfile),
+      stream: Provider.of<MentorshipProvider>(context).getMatchedMenteesForMentor(mentorProfile.uid),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
+        if (snapshot.hasError) {
+          return const Center(child: Text("Something went wrong."));
+        }
         final students = snapshot.data ?? [];
         if (students.isEmpty) {
-          return const Center(child: Text("No matching students found yet."));
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 24.0),
+              child: Text("No mentees matched yet.\nAccept requests to see them here!", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+            ),
+          );
         }
-        
         return Column(
-          children: students.take(3).map((student) {
+          children: students.map((student) {
             return _UserSummaryCard(
-              user: student,  
+              user: student,
               isMentor: false,
-              onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => MentorDetailScreen(mentor: student)));
-              },
+              onTap: () => Navigator.pushNamed(context, AppRouter.mentorDetail, arguments: student),
             );
           }).toList(),
         );
@@ -1019,21 +1184,21 @@ class _MentorHomeDashboard extends StatelessWidget {
 }
 
 class _MenteeHomeDashboard extends StatelessWidget {
-  const _MenteeHomeDashboard({Key? key}) : super(key: key);
+  final UserProfile studentProfile;
+  const _MenteeHomeDashboard({Key? key, required this.studentProfile}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<UserProfile>>(
-      future: Provider.of<MentorshipProvider>(context).searchMentors(),
+      future: Provider.of<MentorshipProvider>(context).searchMentors(studentProfile: studentProfile),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         final mentors = snapshot.data ?? [];
         if (mentors.isEmpty) {
-          return const Center(child: Text("No recommended mentors found. Try expanding your profile interests."));
+          return const Center(child: Text("No recommended mentors found."));
         }
-        
         return Column(
           children: mentors.take(3).map((mentor) {
             return MentorCard(mentor: mentor);
@@ -1050,33 +1215,30 @@ class _UserSummaryCard extends StatelessWidget {
   final VoidCallback onTap;
 
   const _UserSummaryCard({
-    required this.user,  
+    required this.user,
     required this.isMentor,
-    required this.onTap
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      margin: const EdgeInsets.only(bottom: 16),
       child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   CircleAvatar(
-                    radius: 24, 
-                    backgroundColor: Theme.of(context).primaryColor,
+                    radius: 28,
+                    backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
                     child: Text(
-                      user.name[0].toUpperCase(),
-                      style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
+                      user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                      style: TextStyle(fontSize: 24, color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -1084,33 +1246,34 @@ class _UserSummaryCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(user.name, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                        Text(user.name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 4),
                         Text(
-                          isMentor  
-                            ? 'Works at: ${user.currentcompany ?? 'N/A'}'
-                            : '${user.major ?? 'Unknown'} in ${user.university ?? 'Unknown'}',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
+                          isMentor
+                              ? 'Works at: ${user.currentcompany ?? 'N/A'}'
+                              : '${user.major ?? 'Unknown Major'}',
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
-                  Icon(user.isverified ? Icons.verified_user : Icons.school, 
-                       color: user.isverified ? Colors.blue.shade700 : Colors.grey.shade500,
-                       size: 20),
+                  if(user.isverified)
+                    Icon(Icons.verified_user, color: Colors.blue.shade600, size: 22),
                 ],
               ),
-              const SizedBox(height: 12),
-              if (user.skills.isNotEmpty)
+              if (user.skills.isNotEmpty) ...[
+                const SizedBox(height: 16),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: user.skills.take(3).map((skill) => Chip(
-                    label: Text(skill, style: TextStyle(fontSize: 12, color: customPrimarySwatch.shade800)),
+                    label: Text(skill, style: TextStyle(fontSize: 12, color: customPrimarySwatch.shade800, fontWeight: FontWeight.w500)),
                     backgroundColor: customPrimarySwatch.shade50,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   )).toList(),
                 ),
+              ],
             ],
           ),
         ),
@@ -1118,7 +1281,6 @@ class _UserSummaryCard extends StatelessWidget {
     );
   }
 }
-
 
 class _QuickActionCard extends StatelessWidget {
   final IconData icon;
@@ -1136,23 +1298,23 @@ class _QuickActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      color: color.withOpacity(0.1),
+      elevation: 0,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 36, color: color), 
+              Icon(icon, size: 36, color: color),
               const SizedBox(height: 12),
               Text(
                 title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade800,
+                  color: color.withGreen(50),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -1173,22 +1335,43 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final _searchController = TextEditingController();
-  List<UserProfile> _mentors = [];
-  bool _isLoading = false;
+  List<UserProfile> _allMentors = [];
+  List<UserProfile> _filteredMentors = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _searchMentors();
+    _fetchAndSortMentors();
   }
 
-  Future<void> _searchMentors() async {
+  Future<void> _fetchAndSortMentors() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final provider = Provider.of<MentorshipProvider>(context, listen: false);
-    final mentors = await provider.searchMentors();
+    
+    final mentors = await provider.searchMentors(studentProfile: authProvider.userProfile);
+    
+    if (mounted) {
+      setState(() {
+        _allMentors = mentors;
+        _filteredMentors = mentors;
+        _isLoading = false;
+      });
+    }
+  }
+  
+  void _filterMentors(String query) {
+    final filtered = _allMentors.where((mentor) {
+      final input = query.toLowerCase();
+      return mentor.name.toLowerCase().contains(input) ||
+             (mentor.major?.toLowerCase().contains(input) ?? false) ||
+             mentor.skills.any((s) => s.toLowerCase().contains(input));
+    }).toList();
+    
     setState(() {
-      _mentors = mentors;
-      _isLoading = false;
+      _filteredMentors = filtered;
     });
   }
 
@@ -1196,36 +1379,41 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Find Mentors'),
+        title: const Text('Find a Mentor'),
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search by major, university, or skills',
-                prefixIcon: Icon(Icons.search, color: customPrimarySwatch.shade600),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.filter_list, color: Colors.grey),
-                  onPressed: () {
-                  },
-                ),
+                hintText: 'Search by name, major, skills...',
+                prefixIcon: Icon(Icons.search_rounded, color: Colors.grey.shade500),
               ),
-              onSubmitted: (_) => _searchMentors(),
+              onChanged: _filterMentors,
             ),
           ),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _mentors.length,
-                    itemBuilder: (context, index) {
-                      return MentorCard(mentor: _mentors[index]);
-                    },
-                  ),
+                : _filteredMentors.isEmpty
+                    ? Center(
+                        child: Text(
+                          "No mentors found.",
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                      )
+                    : RefreshIndicator(
+                      onRefresh: _fetchAndSortMentors,
+                      child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: _filteredMentors.length,
+                          itemBuilder: (context, index) {
+                            return MentorCard(mentor: _filteredMentors[index]);
+                          },
+                        ),
+                    ),
           ),
         ],
       ),
@@ -1235,7 +1423,6 @@ class _SearchScreenState extends State<SearchScreen> {
 
 class MentorCard extends StatelessWidget {
   final UserProfile mentor;
-
   const MentorCard({Key? key, required this.mentor}) : super(key: key);
 
   @override
@@ -1243,77 +1430,136 @@ class MentorCard extends StatelessWidget {
     return _UserSummaryCard(
       user: mentor,
       isMentor: true,
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => MentorDetailScreen(mentor: mentor),
-          ),
-        );
-      },
+      onTap: () => Navigator.pushNamed(context, AppRouter.mentorDetail, arguments: mentor),
     );
   }
 }
 
-class MentorDetailScreen extends StatelessWidget {
+class MentorDetailScreen extends StatefulWidget {
   final UserProfile mentor;
-
   const MentorDetailScreen({Key? key, required this.mentor}) : super(key: key);
 
   @override
+  State<MentorDetailScreen> createState() => _MentorDetailScreenState();
+}
+
+class _MentorDetailScreenState extends State<MentorDetailScreen> {
+  String _requestStatus = 'loading';
+
+  @override
+  void initState() {
+    super.initState();
+    _checkExistingRequest();
+  }
+
+  Future<void> _checkExistingRequest() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.userProfile?.role != 'student') {
+      setState(() => _requestStatus = 'not_applicable');
+      return;
+    }
+
+    final studentId = authProvider.user!.uid;
+    final mentorId = widget.mentor.uid;
+
+    final query = await FirebaseFirestore.instance
+        .collection('mentorship_requests')
+        .where('studentId', isEqualTo: studentId)
+        .where('mentorId', isEqualTo: mentorId)
+        .limit(1)
+        .get();
+
+    if (mounted) {
+      if (query.docs.isNotEmpty) {
+        setState(() {
+          _requestStatus = query.docs.first.data()['status'] ?? 'pending';
+        });
+      } else {
+        setState(() {
+          _requestStatus = 'not_sent';
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final currentUserId = Provider.of<AuthProvider>(context).user?.uid ?? '';
-    final isMentee = Provider.of<AuthProvider>(context).userProfile?.role == 'student';
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUserId = authProvider.user?.uid ?? '';
+    final isMenteeViewing = authProvider.userProfile?.role == 'student';
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Profile'),
+        backgroundColor: Colors.transparent,
+        iconTheme: const IconThemeData(color: Colors.black87),
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              color: Theme.of(context).primaryColor,
-              padding: const EdgeInsets.all(30),
-              width: double.infinity,
-              child: Column(
+            SizedBox(
+              height: 280,
+              child: Stack(
                 children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.white,
-                    child: Text(
-                      mentor.name[0].toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 40,
-                        color: Theme.of(context).primaryColor,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  Container(
+                    height: 200,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor.withOpacity(0.1),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    mentor.name,
-                    style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  if (mentor.currentcompany != null)
-                    Text(
-                      '${mentor.currentcompany}',
-                      style: const TextStyle(color: Colors.white70, fontSize: 16),
-                    ),
-                  if (mentor.isverified)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8.0),
-                      child: Chip(
-                        label: Text('Verified Mentor', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                        backgroundColor: Colors.blueAccent,
+                  Positioned(
+                    top: 140,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: CircleAvatar(
+                        radius: 64,
+                        backgroundColor: Colors.white,
+                        child: CircleAvatar(
+                          radius: 60,
+                          backgroundColor: Theme.of(context).primaryColor.withOpacity(0.2),
+                          child: Text(
+                            widget.mentor.name.isNotEmpty ? widget.mentor.name[0].toUpperCase() : '?',
+                            style: TextStyle(
+                              fontSize: 50,
+                              color: Theme.of(context).primaryColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
+                  )
                 ],
+              ),
+            ),
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  children: [
+                    Text(
+                      widget.mentor.name,
+                      style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    if (widget.mentor.currentcompany != null)
+                      Text(
+                        '${widget.mentor.currentcompany}',
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                      ),
+                    if (widget.mentor.isverified)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Chip(
+                          label: const Text('Verified Mentor', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          backgroundColor: Colors.blueAccent,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
             Padding(
@@ -1324,103 +1570,95 @@ class MentorDetailScreen extends StatelessWidget {
                   _ProfileSection(
                     title: "Education",
                     children: [
-                      _InfoRow(icon: Icons.school, label: "University", value: mentor.university ?? "N/A"),
-                      _InfoRow(icon: Icons.book, label: "Major", value: mentor.major ?? "N/A"),
-                      if(mentor.graduationyear != null)
-                        _InfoRow(icon: Icons.calendar_today, label: "Graduation Year", value: mentor.graduationyear.toString()),
+                      _InfoRow(icon: Icons.school_rounded, label: "University", value: widget.mentor.university ?? "N/A"),
+                      _InfoRow(icon: Icons.book_rounded, label: "Major", value: widget.mentor.major ?? "N/A"),
+                      if (widget.mentor.graduationyear != null)
+                        _InfoRow(icon: Icons.calendar_today_rounded, label: "Graduation Year", value: widget.mentor.graduationyear.toString()),
                     ],
                   ),
-                  const SizedBox(height: 24),
-
+                  const SizedBox(height: 16),
                   _ProfileSection(
                     title: "Skills",
                     children: [
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: mentor.skills.map((skill) => Chip(
-                          label: Text(skill, style: TextStyle(color: customPrimarySwatch.shade800)),
+                        children: widget.mentor.skills.map((skill) => Chip(
+                          label: Text(skill, style: TextStyle(color: customPrimarySwatch.shade800, fontWeight: FontWeight.w500)),
                           backgroundColor: customPrimarySwatch.shade50,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                         )).toList(),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-
-                  if (isMentee && mentor.uid != currentUserId)
+                  const SizedBox(height: 16),
+                  _buildStoriesSection(context),
+                  const SizedBox(height: 16),
+                  if (isMenteeViewing && widget.mentor.uid != currentUserId && _requestStatus == 'accepted')
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 24.0),
+                      padding: const EdgeInsets.only(bottom: 16.0),
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          final chatId = Provider.of<MentorshipProvider>(context, listen: false).getChatId(currentUserId, mentor.uid);
-                          Navigator.push(
-                            context,  
-                            MaterialPageRoute(
-                              builder: (_) => ChatScreen(recipientId: mentor.uid, recipientName: mentor.name, chatId: chatId)
-                            ),
-                          );
+                          final chatId = Provider.of<MentorshipProvider>(context, listen: false).getChatId(currentUserId, widget.mentor.uid);
+                          Navigator.pushNamed(context, AppRouter.chat, arguments: {
+                            'recipientId': widget.mentor.uid,
+                            'recipientName': widget.mentor.name,
+                            'chatId': chatId,
+                          });
                         },
-                        icon: const Icon(Icons.chat),
+                        icon: const Icon(Icons.chat_rounded),
                         label: const Text('Start Chat'),
                         style: ElevatedButton.styleFrom(
                           minimumSize: const Size(double.infinity, 50),
-                          backgroundColor: customPrimarySwatch.shade600,
                         ),
                       ),
                     ),
                   
-                  Text(
-                    'Reviews',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: Colors.grey.shade800),
-                  ),
-                  const SizedBox(height: 8),
-                  StreamBuilder<List<Review>>(
-                    stream: Provider.of<MentorshipProvider>(context, listen: false)
-                        .getReviews(mentor.uid),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      final reviews = snapshot.data!;
-                      if (reviews.isEmpty) {
-                        return const Text('No reviews yet');
-                      }
-                      return Column(
-                        children: reviews.take(3).map((review) {
-                          return Card(
-                            elevation: 1,
-                            margin: const EdgeInsets.only(bottom: 12),
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      RatingBarIndicator(
-                                        rating: review.rating,
-                                        itemBuilder: (context, index) => const Icon(Icons.star, color: Colors.amber),
-                                        itemCount: 5,
-                                        itemSize: 20,
-                                      ),
-                                      const Spacer(),
-                                      Text(
-                                        DateFormat('MMM d, yyyy').format(review.createdAt),
-                                        style: Theme.of(context).textTheme.bodySmall,
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(review.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  Text(review.content, maxLines: 3, overflow: TextOverflow.ellipsis),
-                                ],
-                              ),
-                            ),
+                  _ProfileSection(
+                    title: 'Reviews',
+                    children: [
+                       StreamBuilder<List<Review>>(
+                        stream: Provider.of<MentorshipProvider>(context, listen: false).getReviews(widget.mentor.uid),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
+                          final reviews = snapshot.data!;
+                          if (reviews.isEmpty) {
+                            return const Text('No reviews yet.');
+                          }
+                          return Column(
+                            children: reviews.take(3).map((review) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 8.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                     Row(
+                                      children: [
+                                        RatingBarIndicator(
+                                          rating: review.rating,
+                                          itemBuilder: (context, index) => const Icon(Icons.star_rounded, color: Colors.amber),
+                                          itemCount: 5,
+                                          itemSize: 16,
+                                        ),
+                                        const Spacer(),
+                                        Text(
+                                          DateFormat('MMM d, yyyy').format(review.createdAt),
+                                          style: Theme.of(context).textTheme.bodySmall,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(review.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    Text(review.content, maxLines: 3, overflow: TextOverflow.ellipsis),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
                           );
-                        }).toList(),
-                      );
-                    },
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1428,33 +1666,83 @@ class MentorDetailScreen extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: isMentee && mentor.uid != currentUserId ? SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: ElevatedButton(
-            onPressed: () => _showRequestDialog(context),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: customPrimarySwatch.shade800,
-            ),
-            child: const Text('Request Mentorship'),
-          ),
+      bottomNavigationBar: _buildBottomButton(context, isMenteeViewing, currentUserId),
+    );
+  }
+  
+  Widget _buildStoriesSection(BuildContext context) {
+    return _ProfileSection(
+      title: "Stories & Insights",
+      children: [
+        StreamBuilder<List<Story>>(
+          stream: Provider.of<MentorshipProvider>(context, listen: false).getStoriesForMentor(widget.mentor.uid),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final stories = snapshot.data ?? [];
+            if (stories.isEmpty) {
+              return const Text("No stories posted yet.");
+            }
+            return Column(
+              children: stories.map((story) => ListTile(
+                title: Text(story.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(story.content, maxLines: 2, overflow: TextOverflow.ellipsis),
+                onTap: () {},
+              )).toList(),
+            );
+          },
         ),
-      ) : null,
+      ],
     );
   }
 
+
+  Widget? _buildBottomButton(BuildContext context, bool isMenteeViewing, String currentUserId) {
+    if (!isMenteeViewing || widget.mentor.uid == currentUserId) {
+      return null;
+    }
+    
+    String text = 'Request Mentorship';
+    VoidCallback? onPressed = () => _showRequestDialog(context);
+
+    if (_requestStatus == 'pending') {
+      text = 'Request Sent';
+      onPressed = null;
+    } else if (_requestStatus == 'accepted') {
+      return null;
+    } else if (_requestStatus == 'loading') {
+       text = 'Loading...';
+       onPressed = null;
+    }
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: ElevatedButton.icon(
+          icon: Icon(onPressed == null ? Icons.check_circle_rounded : Icons.person_add_alt_1_rounded),
+          onPressed: onPressed,
+          label: Text(text),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: onPressed == null ? Colors.grey.shade400 : customPrimarySwatch.shade600,
+          ),
+        ),
+      ),
+    );
+  }
+
+
   void _showRequestDialog(BuildContext context) {
     final messageController = TextEditingController();
-    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Request Mentorship from ${mentor.name}', style: const TextStyle(fontWeight: FontWeight.bold)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Request ${widget.mentor.name}', style: const TextStyle(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Send a personalized message to ${mentor.name}'),
+            const Text('Send a personalized message to introduce yourself.'),
             const SizedBox(height: 16),
             TextField(
               controller: messageController,
@@ -1473,25 +1761,22 @@ class MentorDetailScreen extends StatelessWidget {
           ElevatedButton(
             onPressed: () async {
               final provider = Provider.of<MentorshipProvider>(context, listen: false);
-              if (messageController.text.isEmpty) {
-                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Message cannot be empty!')),
-                );
+              if (messageController.text.trim().isEmpty) {
                 return;
               }
               await provider.sendMentorshipRequest(
-                mentor.uid,
+                widget.mentor.uid,
                 messageController.text,
               );
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Mentorship Request sent successfully!')),
+                const SnackBar(content: Text('Mentorship Request sent! ✨')),
               );
+              setState(() {
+                _requestStatus = 'pending';
+              });
             },
-            child: const Text('Send Request'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: customPrimarySwatch.shade800,
-            ),
+            child: const Text('Send'),
           ),
         ],
       ),
@@ -1512,21 +1797,22 @@ class RequestsScreen extends StatelessWidget {
         title: const Text('Mentorship Requests'),
       ),
       body: StreamBuilder<List<MentorshipRequest>>(
-        stream: Provider.of<MentorshipProvider>(context)
-            .getPendingRequests(userId),
+        stream: Provider.of<MentorshipProvider>(context).getPendingRequests(userId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.inbox, size: 80, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('No pending requests', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                  Icon(Icons.inbox_rounded, size: 80, color: Colors.grey.shade300),
+                  const SizedBox(height: 16),
+                  Text('No pending requests', style: TextStyle(fontSize: 18, color: Colors.grey.shade600)),
+                  const SizedBox(height: 8),
+                  Text('Your inbox is all clear for now!', style: TextStyle(color: Colors.grey.shade500)),
                 ],
               ),
             );
@@ -1554,27 +1840,21 @@ class RequestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(request.studentId) 
-                  .get(),
+              future: FirebaseFirestore.instance.collection('users').doc(request.studentId).get(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (!snapshot.hasData || !snapshot.data!.exists) {
+                if (!snapshot.data!.exists) {
                   return const Text("Mentee profile not found.");
                 }
-                
+
                 final mentee = UserProfile.fromMap(
                   snapshot.data!.data() as Map<String, dynamic>,
                   request.studentId,
@@ -1585,11 +1865,10 @@ class RequestCard extends StatelessWidget {
                     Row(
                       children: [
                         CircleAvatar(
-                          backgroundColor: Theme.of(context).primaryColor,
-                          radius: 18,
+                          backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
                           child: Text(
                             mentee.name[0].toUpperCase(),
-                            style: const TextStyle(color: Colors.white, fontSize: 14),
+                            style: TextStyle(color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -1599,7 +1878,7 @@ class RequestCard extends StatelessWidget {
                             children: [
                               Text(
                                 mentee.name,
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                               ),
                               if (mentee.university != null)
                                 Text(
@@ -1611,36 +1890,26 @@ class RequestCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const Divider(height: 24),
                     const Text(
                       'Message:',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     ),
                     const SizedBox(height: 4),
-                    Text(request.message, maxLines: 3, overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Requested: ${DateFormat('MMM d, yyyy').format(request.createdAt)}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                    Text(request.message),
                     const SizedBox(height: 16),
                     Row(
                       children: [
                         Expanded(
                           child: OutlinedButton(
                             onPressed: () async {
-                              await Provider.of<MentorshipProvider>(
-                                context,
-                                listen: false,
-                              ).respondToRequest(request.id, false);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Request declined')),
-                              );
+                              await Provider.of<MentorshipProvider>(context, listen: false).respondToRequest(request.id, false);
                             },
                             child: const Text('Decline'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.red.shade700,
                               side: BorderSide(color: Colors.red.shade200),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             ),
                           ),
                         ),
@@ -1648,17 +1917,11 @@ class RequestCard extends StatelessWidget {
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () async {
-                              await Provider.of<MentorshipProvider>(
-                                context,
-                                listen: false,
-                              ).respondToRequest(request.id, true);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Request accepted!')),
-                              );
+                              await Provider.of<MentorshipProvider>(context, listen: false).respondToRequest(request.id, true);
                             },
                             child: const Text('Accept'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: customPrimarySwatch.shade800,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             ),
                           ),
                         ),
@@ -1690,7 +1953,7 @@ class MyMentorsScreen extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('mentorship_requests')
-            .where('studentId', isEqualTo: userId) 
+            .where('studentId', isEqualTo: userId)
             .where('status', isEqualTo: 'accepted')
             .snapshots(),
         builder: (context, snapshot) {
@@ -1699,15 +1962,15 @@ class MyMentorsScreen extends StatelessWidget {
           }
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.people_outline, size: 80, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('No active mentors.', style: TextStyle(fontSize: 16, color: Colors.grey)),
-                  SizedBox(height: 8),
-                  Text('Check the Explore tab to send a request!', style: TextStyle(color: Colors.grey)),
+                  Icon(Icons.people_outline_rounded, size: 80, color: Colors.grey.shade300),
+                  const SizedBox(height: 16),
+                  Text('No active mentors yet', style: TextStyle(fontSize: 18, color: Colors.grey.shade600)),
+                  const SizedBox(height: 8),
+                  Text('Use the Explore tab to find and connect!', style: TextStyle(color: Colors.grey.shade500)),
                 ],
               ),
             );
@@ -1722,19 +1985,16 @@ class MyMentorsScreen extends StatelessWidget {
                 snapshot.data!.docs[index].id,
               );
               return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(request.mentorId)
-                    .get(),
+                future: FirebaseFirestore.instance.collection('users').doc(request.mentorId).get(),
                 builder: (context, mentorSnapshot) {
                   if (!mentorSnapshot.hasData) {
-                    return const SizedBox();
+                    return const SizedBox.shrink();
                   }
                   final mentor = UserProfile.fromMap(
                     mentorSnapshot.data!.data() as Map<String, dynamic>,
                     request.mentorId,
                   );
-                  return MentorCard(mentor: mentor); 
+                  return MentorCard(mentor: mentor);
                 },
               );
             },
@@ -1758,24 +2018,17 @@ class ProfileScreen extends StatelessWidget {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: const Text('My Profile'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const EditProfileScreen(),
-                ),
-              );
-            },
+            icon: const Icon(Icons.edit_rounded),
+            onPressed: () => Navigator.pushNamed(context, AppRouter.editProfile),
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
             onPressed: () async {
               await authProvider.signOut();
             },
@@ -1788,12 +2041,12 @@ class ProfileScreen extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 60,
-              backgroundColor: Theme.of(context).primaryColor,
+              backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
               child: Text(
-                profile.name[0].toUpperCase(),
-                style: const TextStyle(
+                profile.name.isNotEmpty ? profile.name[0].toUpperCase() : '?',
+                style: TextStyle(
                   fontSize: 48,
-                  color: Colors.white,
+                  color: Theme.of(context).primaryColor,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -1816,43 +2069,38 @@ class ProfileScreen extends StatelessWidget {
               ),
               backgroundColor: Theme.of(context).primaryColor,
             ),
-            const SizedBox(height: 24),
-
+            const SizedBox(height: 32),
             _ProfileSection(
               title: 'Education',
               children: [
-                _InfoRow(icon: Icons.school, label: 'University', value: profile.university ?? "N/A"),
-                _InfoRow(icon: Icons.book, label: 'Major', value: profile.major ?? "N/A"),
+                _InfoRow(icon: Icons.school_rounded, label: 'University', value: profile.university ?? "Not set"),
+                _InfoRow(icon: Icons.book_rounded, label: 'Major', value: profile.major ?? "Not set"),
                 if (profile.graduationyear != null)
-                  _InfoRow(icon: Icons.calendar_today, label: 'Graduation Year', value: profile.graduationyear.toString()),
+                  _InfoRow(icon: Icons.calendar_today_rounded, label: 'Graduation Year', value: profile.graduationyear.toString()),
               ],
             ),
             const SizedBox(height: 16),
-
-            if (profile.role == 'mentor') 
+            if (profile.role == 'mentor')
               _ProfileSection(
                 title: 'Career',
                 children: [
-                  _InfoRow(icon: Icons.business, label: 'Company', value: profile.currentcompany ?? "N/A"),
+                  _InfoRow(icon: Icons.business_center_rounded, label: 'Company', value: profile.currentcompany ?? "Not set"),
                 ],
               ),
             const SizedBox(height: 16),
-            if (profile.skills.isNotEmpty)
-              _ProfileSection(
-                title: 'Skills',
-                children: [
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: profile.skills.map((skill) => Chip(
-                      label: Text(skill, style: TextStyle(color: customPrimarySwatch.shade800)),
-                      backgroundColor: customPrimarySwatch.shade50,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                    )).toList(),
-                  ),
-                ],
-              ),
-            const SizedBox(height: 16),
+            _ProfileSection(
+              title: 'My Interests / Skills',
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: profile.skills.map((skill) => Chip(
+                    label: Text(skill, style: TextStyle(color: customPrimarySwatch.shade800)),
+                    backgroundColor: customPrimarySwatch.shade50,
+                  )).toList(),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -1872,18 +2120,22 @@ class _ProfileSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
               title,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor),
             ),
-            const Divider(height: 20, color: Color(0xFFE0E0E0)),
+            const Divider(height: 24),
             ...children,
           ],
         ),
@@ -1908,20 +2160,22 @@ class _InfoRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: customPrimarySwatch.shade600),
+          Icon(icon, size: 20, color: Theme.of(context).primaryColor),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  label,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade500),
-                ),
-                Text(
                   value,
                   style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Colors.black87),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade500),
                 ),
               ],
             ),
@@ -1973,10 +2227,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       'currentCompany': _companyController.text,
       'location': _locationController.text,
       'skills': _skills,
+      'interests': _skills,
     };
 
     await Provider.of<AuthProvider>(context, listen: false).updateProfile(data);
-    
+
     if (mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1987,6 +2242,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final isMentor = authProvider.userProfile?.role == 'mentor';
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Profile'),
@@ -2012,24 +2270,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: _companyController,
-              decoration: const InputDecoration(labelText: 'Current Company', hintText: 'e.g. Google'),
-            ),
-            const SizedBox(height: 16),
+             if (isMentor) ...[
+                TextFormField(
+                  controller: _companyController,
+                  decoration: const InputDecoration(labelText: 'Current Company', hintText: 'e.g. Google'),
+                ),
+                const SizedBox(height: 16),
+             ],
             TextFormField(
               controller: _locationController,
               decoration: const InputDecoration(labelText: 'Location', hintText: 'e.g. New York, USA'),
             ),
             const SizedBox(height: 24),
-            Text('Skills', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            Text(isMentor ? 'My Skills' : 'My Interests', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _skillController,
-                    decoration: InputDecoration(hintText: 'Add a skill', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
+                    decoration: InputDecoration(hintText: isMentor ? 'Add a skill (e.g. Python)' : 'Add an interest (e.g. AI)'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -2037,7 +2297,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   onPressed: () {
                     if (_skillController.text.isNotEmpty) {
                       setState(() {
-                        _skills.add(_skillController.text);
+                        _skills.add(_skillController.text.trim());
                         _skillController.clear();
                       });
                     }
@@ -2062,10 +2322,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             const SizedBox(height: 40),
             ElevatedButton(
               onPressed: _saveProfile,
-              child: const Text('Save Profile'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
+              child: const Text('Save Changes'),
             ),
           ],
         ),
@@ -2074,123 +2331,298 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 }
 
-class StoriesScreen extends StatelessWidget {
-  final bool isMentor;
-  const StoriesScreen({Key? key, required this.isMentor}) : super(key: key);
+class StoriesScreen extends StatefulWidget {
+  const StoriesScreen({Key? key}) : super(key: key);
+
+  @override
+  State<StoriesScreen> createState() => _StoriesScreenState();
+}
+
+class _StoriesScreenState extends State<StoriesScreen> {
+  List<String> _selectedTags = [];
+
+  void _toggleTag(String tag) {
+    setState(() {
+      if (_selectedTags.contains(tag)) {
+        _selectedTags.remove(tag);
+      } else {
+        _selectedTags.add(tag);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final isMentor = authProvider.userProfile?.role == 'mentor';
     final provider = Provider.of<MentorshipProvider>(context, listen: false);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isMentor ? 'Post New Story' : 'Mentorship Stories'),
+        title: Text(isMentor ? 'My Stories' : 'Mentorship Stories'),
         actions: isMentor ? [
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: const Icon(Icons.add_circle_rounded),
             onPressed: () {
               _showPostStoryDialog(context, provider);
             },
           )
         ] : null,
       ),
-      body: StreamBuilder<List<Story>>(
-        stream: provider.getStories(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-             return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.amp_stories, size: 60, color: Colors.grey.shade400),
-                  const SizedBox(height: 16),
-                  Text(
-                    isMentor ? 'Post your first story/tip!' : 'No stories found.',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ],
+      body: Column(
+        children: [
+          if (_selectedTags.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Wrap(
+                spacing: 8,
+                children: _selectedTags.map((tag) => Chip(
+                  label: Text(tag),
+                  onDeleted: () => _toggleTag(tag),
+                )).toList(),
               ),
-            );
-          }
-          
-          final stories = snapshot.data!;
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: stories.length,
-            itemBuilder: (context, index) {
-              final story = stories[index];
-              return Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                margin: const EdgeInsets.only(bottom: 16),
-                child: ListTile(
-                  title: Text(story.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text(story.content, maxLines: 2, overflow: TextOverflow.ellipsis),
-                  trailing: Text(DateFormat('MMM d').format(story.createdAt)),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Viewing story: ${story.title}')),
+            ),
+          Expanded(
+            child: StreamBuilder<List<Story>>(
+              stream: provider.getStories(tags: _selectedTags.isEmpty ? null : _selectedTags),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.amp_stories_rounded, size: 80, color: Colors.grey.shade300),
+                        const SizedBox(height: 16),
+                        Text(
+                          _selectedTags.isEmpty ? 'No stories available yet.' : 'No stories found with selected tags.',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final stories = snapshot.data!;
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: stories.length,
+                  itemBuilder: (context, index) {
+                    final story = stories[index];
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(story.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                            const SizedBox(height: 8),
+                            Text(story.content, maxLines: 5, overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 12),
+                            if (story.tags.isNotEmpty)
+                              Wrap(
+                                spacing: 8,
+                                children: story.tags.map((tag) => InkWell(
+                                  onTap: () => _toggleTag(tag),
+                                  child: Chip(
+                                    label: Text(tag, style: const TextStyle(fontSize: 12)),
+                                    padding: EdgeInsets.zero,
+                                    backgroundColor: _selectedTags.contains(tag) ? customPrimarySwatch.shade200 : customPrimarySwatch.shade50,
+                                  ),
+                                )).toList(),
+                              )
+                          ],
+                        ),
+                      ),
                     );
                   },
-                ),
-              );
-            },
-          );
-        },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
-  
+
   void _showPostStoryDialog(BuildContext context, MentorshipProvider provider) {
-    final titleController = TextEditingController();
-    final contentController = TextEditingController();
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Post New Story', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Column(
+      builder: (context) => _PostStoryDialog(
+        onPost: (title, content, tags) async {
+            final authProvider = Provider.of<AuthProvider>(context, listen: false);
+            if (title.isNotEmpty && content.isNotEmpty && authProvider.user != null) {
+              final story = Story(
+                id: '',
+                authorId: authProvider.user!.uid,
+                title: title,
+                content: content,
+                tags: tags,
+                createdAt: DateTime.now(),
+              );
+              await provider.postStory(story);
+              Navigator.pop(context);
+            }
+        }
+      ),
+    );
+  }
+}
+
+class _PostStoryDialog extends StatefulWidget {
+  final Function(String title, String content, List<String> tags) onPost;
+  const _PostStoryDialog({Key? key, required this.onPost}) : super(key: key);
+
+  @override
+  State<_PostStoryDialog> createState() => _PostStoryDialogState();
+}
+
+class _PostStoryDialogState extends State<_PostStoryDialog> {
+  final _titleController = TextEditingController();
+  final _contentController = TextEditingController();
+  final _tagController = TextEditingController();
+  final List<String> _tags = [];
+
+  void _addTag() {
+    if (_tagController.text.isNotEmpty && !_tags.contains(_tagController.text.trim())) {
+      setState(() {
+        _tags.add(_tagController.text.trim());
+        _tagController.clear();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text('Post New Story', style: TextStyle(fontWeight: FontWeight.bold)),
+      content: SingleChildScrollView(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextField(
-              controller: titleController,
+              controller: _titleController,
               decoration: const InputDecoration(labelText: 'Title'),
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: contentController,
+              controller: _contentController,
               decoration: const InputDecoration(labelText: 'Content'),
-              maxLines: 3,
+              maxLines: 4,
             ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(child: TextField(controller: _tagController, decoration: const InputDecoration(labelText: 'Add Tag'))),
+                IconButton(icon: const Icon(Icons.add), onPressed: _addTag),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: _tags.map((tag) => Chip(
+                label: Text(tag),
+                onDeleted: () => setState(() => _tags.remove(tag)),
+              )).toList(),
+            )
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleController.text.isNotEmpty && contentController.text.isNotEmpty && authProvider.user != null) {
-                final story = Story(
-                  id: '', 
-                  authorId: authProvider.user!.uid, 
-                  title: titleController.text.trim(), 
-                  content: contentController.text.trim(), 
-                  createdAt: DateTime.now(),
-                );
-                await provider.postStory(story);
-                Navigator.pop(context);
-              }
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
+        ),
+        ElevatedButton(
+          onPressed: () => widget.onPost(_titleController.text.trim(), _contentController.text.trim(), _tags),
+          child: const Text('Post'),
+        ),
+      ],
+    );
+  }
+}
+
+class ChatListScreen extends StatelessWidget {
+  const ChatListScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final mentorshipProvider = Provider.of<MentorshipProvider>(context);
+    final currentUserId = authProvider.user?.uid ?? '';
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Chats'),
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: mentorshipProvider.getChatsForUser(currentUserId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.chat_bubble_outline_rounded, size: 80, color: Colors.grey.shade300),
+                  const SizedBox(height: 16),
+                  Text('No chats yet.', style: TextStyle(fontSize: 18, color: Colors.grey.shade600)),
+                  Text('Start a conversation with a mentor!', style: TextStyle(color: Colors.grey.shade500)),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            itemCount: snapshot.data!.docs.length,
+            itemBuilder: (context, index) {
+              final chatDoc = snapshot.data!.docs[index];
+              final members = List<String>.from(chatDoc['members']);
+              final recipientId = members.firstWhere((id) => id != currentUserId, orElse: () => '');
+              final lastMessage = chatDoc['lastMessage'] ?? '';
+              
+              if(recipientId.isEmpty) return const SizedBox.shrink();
+
+              return FutureBuilder<UserProfile?>(
+                future: authProvider.getUserProfile(recipientId),
+                builder: (context, userSnapshot) {
+                  if (!userSnapshot.hasData) {
+                    return const ListTile(title: Text("Loading chat..."));
+                  }
+                  final recipient = userSnapshot.data;
+                  if (recipient == null) {
+                    return const SizedBox.shrink();
+                  }
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                      child: Text(
+                        recipient.name.isNotEmpty ? recipient.name[0].toUpperCase() : '?',
+                        style: TextStyle(color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    title: Text(recipient.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text(lastMessage, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    onTap: () {
+                      Navigator.pushNamed(context, AppRouter.chat, arguments: {
+                        'recipientId': recipient.uid,
+                        'recipientName': recipient.name,
+                        'chatId': chatDoc.id
+                      });
+                    },
+                  );
+                },
+              );
             },
-            child: const Text('Post'),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -2199,7 +2631,7 @@ class StoriesScreen extends StatelessWidget {
 class ChatScreen extends StatelessWidget {
   final String recipientId;
   final String recipientName;
-  final String? chatId; 
+  final String? chatId;
 
   const ChatScreen({
     Key? key,
@@ -2214,26 +2646,10 @@ class ChatScreen extends StatelessWidget {
     final provider = Provider.of<MentorshipProvider>(context, listen: false);
     final finalChatId = chatId ?? provider.getChatId(currentUserId, recipientId);
     final messageController = TextEditingController();
-    if (recipientId == 'placeholder_id') {
-      return Scaffold(
-        appBar: AppBar(title: const Text('My Chats')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.chat_bubble_outline, size: 60, color: Colors.grey.shade400),
-              const SizedBox(height: 16),
-              Text('Chat list interface goes here!', style: TextStyle(color: Colors.grey.shade600)),
-              Text('Start a chat from an accepted connection or mentor profile.', style: TextStyle(color: Colors.grey.shade600)),
-            ],
-          ),
-        ),
-      );
-    }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Chat with $recipientName'),
+        title: Text(recipientName),
       ),
       body: Column(
         children: [
@@ -2241,8 +2657,11 @@ class ChatScreen extends StatelessWidget {
             child: StreamBuilder<List<ChatMessage>>(
               stream: provider.getChatMessages(finalChatId),
               builder: (context, snapshot) {
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('Start the conversation!'));
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if(snapshot.data!.isEmpty) {
+                  return const Center(child: Text('Say hello! 👋'));
                 }
                 final messages = snapshot.data!;
                 return ListView.builder(
@@ -2250,27 +2669,27 @@ class ChatScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(12),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    final message = messages[messages.length - 1 - index];
+                    final message = messages[index];
                     final isMe = message.senderId == currentUserId;
-                    
+
                     return Align(
                       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                       child: Container(
                         margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                        padding: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
                         decoration: BoxDecoration(
-                          color: isMe ? Theme.of(context).primaryColor : Colors.grey.shade300,
+                          color: isMe ? Theme.of(context).primaryColor : Colors.grey.shade200,
                           borderRadius: BorderRadius.only(
-                            topLeft: const Radius.circular(12),
-                            topRight: const Radius.circular(12),
-                            bottomLeft: isMe ? const Radius.circular(12) : Radius.zero,
-                            bottomRight: isMe ? Radius.zero : const Radius.circular(12),
+                            topLeft: const Radius.circular(16),
+                            topRight: const Radius.circular(16),
+                            bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
+                            bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
                           ),
                         ),
                         child: Text(
                           message.text,
                           style: TextStyle(
-                            color: isMe ? Colors.white : Colors.black,
+                            color: isMe ? Colors.white : Colors.black87,
                           ),
                         ),
                       ),
@@ -2280,40 +2699,42 @@ class ChatScreen extends StatelessWidget {
               },
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: messageController,
-                    decoration: InputDecoration(
-                      hintText: 'Send a message...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: BorderSide.none,
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: messageController,
+                      decoration: InputDecoration(
+                        hintText: 'Type a message...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide.none,
+                        ),
+                        fillColor: Colors.white,
                       ),
-                      filled: true,
-                      fillColor: Colors.grey.shade200,
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                FloatingActionButton(
-                  mini: true,
-                  onPressed: () {
-                    if (messageController.text.isNotEmpty) {
-                      provider.sendMessage(
-                        finalChatId, 
-                        currentUserId, 
-                        messageController.text.trim()
-                      );
-                      messageController.clear();
-                    }
-                  },
-                  child: const Icon(Icons.send),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  FloatingActionButton(
+                    mini: true,
+                    onPressed: () {
+                      if (messageController.text.isNotEmpty) {
+                        provider.sendMessage(
+                          finalChatId,
+                          currentUserId,
+                          recipientId,
+                          messageController.text.trim(),
+                        );
+                        messageController.clear();
+                      }
+                    },
+                    child: const Icon(Icons.send_rounded),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -2334,10 +2755,18 @@ class ProgressScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isMentor ? 'Assigned Tasks' : 'My Progress Tracker'),
+        title: Text(isMentor ? 'Student Progress' : 'My Progress'),
+        actions: isMentor ? [
+          IconButton(
+            icon: const Icon(Icons.add_task_rounded),
+            onPressed: () => _showAssignTaskDialog(context, provider, userId),
+          )
+        ] : null,
       ),
       body: StreamBuilder<List<ProgressTask>>(
-        stream: provider.getMenteeTasks(userId),
+        stream: isMentor 
+            ? FirebaseFirestore.instance.collection('progress').where('mentorId', isEqualTo: userId).snapshots().map((s) => s.docs.map((d) => ProgressTask.fromMap(d.data(), d.id)).toList())
+            : provider.getMenteeTasks(userId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -2348,10 +2777,10 @@ class ProgressScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.trending_up, size: 60, color: Colors.green.shade400),
+                  Icon(Icons.check_circle_outline_rounded, size: 80, color: Colors.grey.shade300),
                   const SizedBox(height: 16),
                   Text(
-                    isMentor ? 'Use the + button to assign a task.' : 'No tasks assigned yet. Reach out to your mentor!',
+                    isMentor ? 'You haven\'t assigned any tasks.' : 'Your progress tracker is empty.',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey.shade600),
                   ),
@@ -2359,7 +2788,7 @@ class ProgressScreen extends StatelessWidget {
               ),
             );
           }
-          
+
           final tasks = snapshot.data!;
           return ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -2369,27 +2798,22 @@ class ProgressScreen extends StatelessWidget {
               final isCompleted = task.status == 'completed';
 
               return Card(
-                elevation: 1,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                margin: const EdgeInsets.only(bottom: 12),
                 child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                   leading: CircleAvatar(
                     backgroundColor: isCompleted ? Colors.green.shade100 : customPrimarySwatch.shade100,
                     child: Icon(
-                      isCompleted ? Icons.check : Icons.hourglass_empty,
+                      isCompleted ? Icons.check_rounded : Icons.hourglass_empty_rounded,
                       color: isCompleted ? Colors.green.shade700 : customPrimarySwatch.shade700,
                     ),
                   ),
-                  title: Text(task.description, style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey.shade800)),
-                  subtitle: Text('Assigned: ${DateFormat('MMM d, yyyy').format(task.assignedAt)} | Status: ${task.status.toUpperCase()}'),
-                  onTap: isMentor ? null : () {
+                  title: Text(task.description, style: TextStyle(fontWeight: FontWeight.w600, decoration: isCompleted ? TextDecoration.lineThrough : TextDecoration.none)),
+                  subtitle: Text('Status: ${task.status.toUpperCase()}'),
+                  onTap: !isMentor ? () {
                     if (!isCompleted) {
                       provider.updateTaskStatus(task.id, 'completed');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Task marked as completed!')),
-                      );
                     }
-                  },
+                  } : null,
                 ),
               );
             },
@@ -2401,52 +2825,72 @@ class ProgressScreen extends StatelessWidget {
   
   void _showAssignTaskDialog(BuildContext context, MentorshipProvider provider, String mentorId) {
     final descriptionController = TextEditingController();
-    String? selectedMenteeId; 
+    UserProfile? selectedMentee;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Assign New Task', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Mentee Selection (In a full app, a dropdown of connected mentees would be here.)'),
-            const SizedBox(height: 16),
-            TextField(
-              decoration: const InputDecoration(labelText: 'Target Mentee UID (Test Only)'),
-              onChanged: (value) => selectedMenteeId = value,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: descriptionController,
-              decoration: const InputDecoration(labelText: 'Task Description'),
-              maxLines: 3,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (descriptionController.text.isNotEmpty && selectedMenteeId != null) {
-                await provider.assignTask(
-                  selectedMenteeId!, 
-                  mentorId, 
-                  descriptionController.text.trim()
-                );
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Task Assigned!')),
-                );
-              }
-            },
-            child: const Text('Assign'),
-          ),
-        ],
-      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Assign New Task', style: TextStyle(fontWeight: FontWeight.bold)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FutureBuilder<List<UserProfile>>(
+                    future: provider.getMatchedMenteesForMentor(mentorId).first,
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return const CircularProgressIndicator();
+                      final mentees = snapshot.data ?? [];
+                      if (mentees.isEmpty) return const Text("You have no mentees to assign tasks to.");
+
+                      return DropdownButtonFormField<UserProfile>(
+                        value: selectedMentee,
+                        hint: const Text("Select a Mentee"),
+                        items: mentees.map((mentee) => DropdownMenuItem(
+                          value: mentee,
+                          child: Text(mentee.name),
+                        )).toList(),
+                        onChanged: (value) {
+                          setDialogState(() => selectedMentee = value);
+                        },
+                      );
+                    }
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: descriptionController,
+                    decoration: const InputDecoration(labelText: 'Task Description'),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (descriptionController.text.isNotEmpty && selectedMentee != null) {
+                      await provider.assignTask(
+                        selectedMentee!.uid,
+                        mentorId,
+                        descriptionController.text.trim(),
+                      );
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Task Assigned!')),
+                      );
+                    }
+                  },
+                  child: const Text('Assign'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }
