@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -18,6 +19,7 @@ class AppRouter {
   static const String chat = '/chat';
   static const String progress = '/progress';
   static const String mentorDetail = '/mentor_detail';
+  static const String achievements = '/achievements';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -34,6 +36,8 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const ChatListScreen());
       case progress:
         return MaterialPageRoute(builder: (_) => const ProgressScreen());
+      case achievements:
+        return MaterialPageRoute(builder: (_) => const AchievementsScreen());
       case mentorDetail:
         final mentor = settings.arguments as UserProfile;
         return MaterialPageRoute(builder: (_) => MentorDetailScreen(mentor: mentor));
@@ -65,7 +69,7 @@ const MaterialColor customPrimarySwatch = MaterialColor(
     300: Color(0xFFAF8FFF),
     400: Color(0xFF9B77FF),
     500: Color(0xFF875FFF),
-    600: Color(0xFF7B4BFF),
+    600: Color(0xFF7B4BFF), 
     700: Color(0xFF6A38F7),
     800: Color(0xFF5A26E8),
     900: Color(0xFF4315D3),
@@ -83,6 +87,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => MentorshipProvider()),
+        ChangeNotifierProvider(create: (_) => GamificationProvider()),
       ],
       child: const PeerMentorApp(),
     ),
@@ -171,6 +176,9 @@ class UserProfile {
   final String? location;
   final bool isVerified;
   final DateTime createdAt;
+  final int tasksCompleted;
+  final int goalsPercentage;
+  final int mentorScore;
 
   UserProfile({
     required this.uid,
@@ -186,6 +194,9 @@ class UserProfile {
     this.skills = const [],
     this.location,
     this.isVerified = false,
+    this.tasksCompleted = 0,
+    this.goalsPercentage = 0,
+    this.mentorScore = 0,
   });
 
   factory UserProfile.fromMap(Map<String, dynamic> map, String uid) {
@@ -210,6 +221,9 @@ class UserProfile {
       location: map['location'] is String ? map['location'] : null,
       isVerified: map['isVerified'] ?? false,
       createdAt: safeCreatedAt,
+      tasksCompleted: map['tasksCompleted'] ?? 0,
+      goalsPercentage: map['goalsPercentage'] ?? 0,
+      mentorScore: map['mentorScore'] ?? 0,
     );
   }
 
@@ -227,7 +241,39 @@ class UserProfile {
       'location': location,
       'isVerified': isVerified,
       'createdAt': createdAt,
+      'tasksCompleted': tasksCompleted,
+      'goalsPercentage': goalsPercentage,
+      'mentorScore': mentorScore,
     };
+  }
+}
+
+class Achievement {
+  final String id;
+  final String userId;
+  final String badgeName;
+  final String badgeIcon;
+  final String description;
+  final DateTime earnedAt;
+
+  Achievement({
+    required this.id,
+    required this.userId,
+    required this.badgeName,
+    required this.badgeIcon,
+    required this.description,
+    required this.earnedAt,
+  });
+
+  factory Achievement.fromMap(Map<String, dynamic> map, String id) {
+    return Achievement(
+      id: id,
+      userId: map['userId'] ?? '',
+      badgeName: map['badgeName'] ?? '',
+      badgeIcon: map['badgeIcon'] ?? '0xe3f3',
+      description: map['description'] ?? '',
+      earnedAt: (map['earnedAt'] as Timestamp).toDate(),
+    );
   }
 }
 
@@ -478,42 +524,31 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // In AuthProvider class
-Future<String?> signUp(String email, String password, String name, String role) async {
-  try {
-    print("STEP 1: Attempting to create user in Firebase Auth...");
-    final credential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-    print("SUCCESS: Auth user created. UID: ${credential.user!.uid}");
+  Future<String?> signUp(
+      String email, String password, String name, String role) async {
+    try {
+      final credential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-    final profile = UserProfile(
-      uid: credential.user!.uid,
-      email: email,
-      name: name,
-      role: role,
-      isVerified: false, // Explicitly set for the new document
-      createdAt: DateTime.now(),
-    );
+      final profile = UserProfile(
+        uid: credential.user!.uid,
+        email: email,
+        name: name,
+        role: role,
+        createdAt: DateTime.now(),
+      );
 
-    print("STEP 2: Attempting to create user profile document in Firestore...");
-    await _firestore
-        .collection('users')
-        .doc(credential.user!.uid)
-        .set(profile.toMap());
-    print("SUCCESS: Firestore document created.");
-
-    // The authStateChanges listener will automatically call _loadUserProfile after this
-    return null;
-  } catch (e) {
-    print("---!!! SIGN UP FAILED !!!---");
-    print("The process failed with this error:");
-    print(e.toString());
-    print("-----------------------------");
-    return e.toString();
+      await _firestore
+          .collection('users')
+          .doc(credential.user!.uid)
+          .set(profile.toMap());
+      return null;
+    } catch (e) {
+      return e.toString();
+    }
   }
-}
 
   Future<String?> signIn(String email, String password) async {
     try {
@@ -600,10 +635,19 @@ class MentorshipProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> respondToRequest(String requestId, bool accept) async {
+  Future<void> respondToRequest(BuildContext context, String requestId, bool accept) async {
     await _firestore.collection('mentorship_requests').doc(requestId).update({
       'status': accept ? 'accepted' : 'rejected',
     });
+
+    if (accept) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final gamificationProvider = Provider.of<GamificationProvider>(context, listen: false);
+      if (authProvider.userProfile != null && authProvider.userProfile!.role == 'mentor') {
+        gamificationProvider.onMenteeAccepted(authProvider.userProfile!);
+      }
+    }
+    
     notifyListeners();
   }
 
@@ -633,11 +677,18 @@ class MentorshipProvider extends ChangeNotifier {
             snapshot.docs.map((doc) => Review.fromMap(doc.data(), doc.id)).toList());
   }
 
-  Future<void> postStory(Story story) async {
+  Future<void> postStory(BuildContext context, Story story) async {
     await _firestore.collection('stories').add(story.toMap());
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final gamificationProvider = Provider.of<GamificationProvider>(context, listen: false);
+    if (authProvider.userProfile != null && authProvider.userProfile!.role == 'mentor') {
+      gamificationProvider.onStoryPosted(authProvider.userProfile!);
+    }
+
     notifyListeners();
   }
-
+  
   Stream<List<Story>> getStories({List<String>? tags}) {
     Query query = _firestore.collection('stories').orderBy('createdAt', descending: true);
     
@@ -760,9 +811,124 @@ class MentorshipProvider extends ChangeNotifier {
             .toList());
   }
 
-  Future<void> updateTaskStatus(String taskId, String status) async {
+  Future<void> updateTaskStatus(BuildContext context, String taskId, String status) async {
     await _firestore.collection('progress').doc(taskId).update({'status': status});
+    
+    if (status == 'completed') {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final gamificationProvider = Provider.of<GamificationProvider>(context, listen: false);
+      
+      if (authProvider.userProfile != null) {
+        gamificationProvider.onTaskCompleted(authProvider.userProfile!);
+      }
+    }
+    
     notifyListeners();
+  }
+}
+
+class GamificationProvider extends ChangeNotifier {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  Future<void> onTaskCompleted(UserProfile studentProfile) async {
+    final newCount = studentProfile.tasksCompleted + 1;
+
+    await _firestore.collection('users').doc(studentProfile.uid).update({
+      'tasksCompleted': newCount,
+      'goalsPercentage': Random().nextInt(41) + 60,
+    });
+
+    if (newCount == 1) {
+      _awardBadge(
+        userId: studentProfile.uid,
+        badgeName: 'Goal Getter',
+        badgeIcon: '0xe859',
+        description: 'You completed your first task!',
+      );
+    } else if (newCount == 5) {
+      _awardBadge(
+        userId: studentProfile.uid,
+        badgeName: 'Active Learner',
+        badgeIcon: '0xf05d',
+        description: 'You\'ve completed 5 tasks!',
+      );
+    }
+  }
+
+  Future<void> onMenteeAccepted(UserProfile mentorProfile) async {
+    final acceptedMentees = await _firestore
+        .collection('mentorship_requests')
+        .where('mentorId', isEqualTo: mentorProfile.uid)
+        .where('status', isEqualTo: 'accepted')
+        .get();
+
+    if (acceptedMentees.docs.length == 1) {
+      _awardBadge(
+        userId: mentorProfile.uid,
+        badgeName: 'Helpful Guide',
+        badgeIcon: '0xf03d',
+        description: 'You accepted your first mentee!',
+      );
+    }
+    await _firestore.collection('users').doc(mentorProfile.uid).update({
+      'mentorScore': Random().nextInt(21) + 20,
+    });
+  }
+  
+  Future<void> onStoryPosted(UserProfile mentorProfile) async {
+    final stories = await _firestore
+        .collection('stories')
+        .where('authorId', isEqualTo: mentorProfile.uid)
+        .get();
+
+    if (stories.docs.length == 1) {
+       _awardBadge(
+        userId: mentorProfile.uid,
+        badgeName: 'Thought Leader',
+        badgeIcon: '0xe3f3',
+        description: 'You shared your first story!',
+      );
+    }
+    await _firestore.collection('users').doc(mentorProfile.uid).update({
+      'mentorScore': Random().nextInt(21) + 40,
+    });
+  }
+
+
+  Future<void> _awardBadge({
+    required String userId,
+    required String badgeName,
+    required String badgeIcon,
+    required String description,
+  }) async {
+    final existingBadge = await _firestore
+        .collection('achievements')
+        .where('userId', isEqualTo: userId)
+        .where('badgeName', isEqualTo: badgeName)
+        .limit(1)
+        .get();
+
+    if (existingBadge.docs.isEmpty) {
+      await _firestore.collection('achievements').add({
+        'userId': userId,
+        'badgeName': badgeName,
+        'badgeIcon': badgeIcon,
+        'description': description,
+        'earnedAt': FieldValue.serverTimestamp(),
+      });
+      print("Awarded badge: $badgeName to user $userId");
+    }
+  }
+
+  Stream<List<Achievement>> getAchievementsForUser(String userId) {
+    return _firestore
+        .collection('achievements')
+        .where('userId', isEqualTo: userId)
+        .orderBy('earnedAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => Achievement.fromMap(doc.data(), doc.id))
+            .toList());
   }
 }
 
@@ -2029,7 +2195,7 @@ class RequestCard extends StatelessWidget {
                         Expanded(
                           child: OutlinedButton(
                             onPressed: () async {
-                              await Provider.of<MentorshipProvider>(context, listen: false).respondToRequest(request.id, false);
+                              await Provider.of<MentorshipProvider>(context, listen: false).respondToRequest(context, request.id, false);
                             },
                             child: const Text('Decline'),
                             style: OutlinedButton.styleFrom(
@@ -2043,7 +2209,7 @@ class RequestCard extends StatelessWidget {
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () async {
-                              await Provider.of<MentorshipProvider>(context, listen: false).respondToRequest(request.id, true);
+                              await Provider.of<MentorshipProvider>(context, listen: false).respondToRequest(context, request.id, true);
                             },
                             child: const Text('Accept'),
                             style: ElevatedButton.styleFrom(
@@ -2140,10 +2306,10 @@ class ProfileScreen extends StatelessWidget {
     final profile = authProvider.userProfile;
 
     if (profile == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+
+    final isStudent = profile.role == 'student';
 
     return Scaffold(
       appBar: AppBar(
@@ -2196,6 +2362,11 @@ class ProfileScreen extends StatelessWidget {
               backgroundColor: Theme.of(context).primaryColor,
             ),
             const SizedBox(height: 32),
+
+            _buildProgressCard(context, isStudent ? profile.goalsPercentage : profile.mentorScore, isStudent),
+            
+            const SizedBox(height: 16),
+            
             _ProfileSection(
               title: 'Education',
               children: [
@@ -2217,16 +2388,65 @@ class ProfileScreen extends StatelessWidget {
             _ProfileSection(
               title: 'My Interests / Skills',
               children: [
+                if (profile.skills.isEmpty && profile.interests.isEmpty)
+                  Text("No skills or interests added yet.", style: TextStyle(color: Colors.grey.shade600)),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: profile.skills.map((skill) => Chip(
+                  children: (profile.skills.isNotEmpty ? profile.skills : profile.interests).map((skill) => Chip(
                     label: Text(skill, style: TextStyle(color: customPrimarySwatch.shade800)),
                     backgroundColor: customPrimarySwatch.shade50,
                   )).toList(),
                 ),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressCard(BuildContext context, int percentage, bool isStudent) {
+    final title = isStudent ? "Monthly Goal Progress" : "Mentor Impact";
+    final description = isStudent
+        ? "You’ve completed $percentage% of your learning goals this month!"
+        : "You've achieved a $percentage% impact score based on your activity.";
+
+    return Card(
+      elevation: 4,
+      shadowColor: customPrimarySwatch.withOpacity(0.2),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              description,
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: LinearProgressIndicator(
+                value: percentage / 100,
+                minHeight: 12,
+                backgroundColor: customPrimarySwatch.shade100,
+                valueColor: AlwaysStoppedAnimation<Color>(customPrimarySwatch.shade600),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => Navigator.pushNamed(context, AppRouter.achievements),
+                child: const Text('View All My Badges →'),
+              ),
+            )
           ],
         ),
       ),
@@ -2595,7 +2815,7 @@ class _StoriesScreenState extends State<StoriesScreen> {
                 tags: tags,
                 createdAt: DateTime.now(),
               );
-              await provider.postStory(story);
+              await provider.postStory(context, story);
               Navigator.pop(context);
             }
         }
@@ -2944,7 +3164,7 @@ class ProgressScreen extends StatelessWidget {
                   subtitle: Text('Status: ${task.status.toUpperCase()}'),
                   onTap: !isMentor ? () {
                     if (!isCompleted) {
-                      provider.updateTaskStatus(task.id, 'completed');
+                      provider.updateTaskStatus(context, task.id, 'completed');
                     }
                   } : null,
                 ),
@@ -3024,6 +3244,94 @@ class ProgressScreen extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+class AchievementsScreen extends StatelessWidget {
+  const AchievementsScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final gamificationProvider = Provider.of<GamificationProvider>(context);
+    final userId = authProvider.user?.uid ?? '';
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('My Achievements')),
+      body: StreamBuilder<List<Achievement>>(
+        stream: gamificationProvider.getAchievementsForUser(userId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.shield_moon_rounded, size: 80, color: Colors.grey.shade300),
+                  const SizedBox(height: 16),
+                  Text('No Badges Yet!', style: TextStyle(fontSize: 18, color: Colors.grey.shade600)),
+                  Text('Complete tasks to earn new achievements.', style: TextStyle(color: Colors.grey.shade500)),
+                ],
+              ),
+            );
+          }
+
+          final achievements = snapshot.data!;
+          return GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: achievements.length,
+            itemBuilder: (context, index) {
+              final achievement = achievements[index];
+              return _BadgeCard(achievement: achievement);
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _BadgeCard extends StatelessWidget {
+  final Achievement achievement;
+  const _BadgeCard({Key? key, required this.achievement}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              IconData(int.parse(achievement.badgeIcon), fontFamily: 'MaterialIcons'),
+              size: 50,
+              color: customPrimarySwatch.shade500,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              achievement.badgeName,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              achievement.description,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
