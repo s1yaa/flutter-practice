@@ -28,7 +28,8 @@ class AppRouter {
       case editProfile:
         return MaterialPageRoute(builder: (_) => const EditProfileScreen());
       case stories:
-        return MaterialPageRoute(builder: (_) => const StoriesScreen());
+        final authorId = settings.arguments as String?;
+        return MaterialPageRoute(builder: (_) => StoriesScreen(authorId: authorId));
       case chatList:
         return MaterialPageRoute(builder: (_) => const ChatListScreen());
       case progress:
@@ -156,7 +157,6 @@ class PeerMentorApp extends StatelessWidget {
   }
 }
 
-// Data Models
 class UserProfile {
   final String uid;
   final String email;
@@ -169,7 +169,7 @@ class UserProfile {
   final List<String> interests;
   final List<String> skills;
   final String? location;
-  final bool isverified;
+  final bool isVerified;
   final DateTime createdAt;
 
   UserProfile({
@@ -177,19 +177,16 @@ class UserProfile {
     required this.email,
     required this.name,
     required this.role,
+    required this.createdAt,
     this.university,
     this.major,
-    int? graduationYear,
-    String? currentCompany,
+    this.graduationyear,
+    this.currentcompany,
     this.interests = const [],
     this.skills = const [],
     this.location,
-    bool isVerified = false,
-    required DateTime createdAt,
-  })  : graduationyear = graduationYear,
-        currentcompany = currentCompany,
-        isverified = isVerified,
-        createdAt = createdAt;
+    this.isVerified = false,
+  });
 
   factory UserProfile.fromMap(Map<String, dynamic> map, String uid) {
     DateTime safeCreatedAt;
@@ -206,10 +203,8 @@ class UserProfile {
       role: map['role'] ?? 'student',
       university: map['university'],
       major: map['major'],
-      graduationYear:
-          map['graduationYear'] is int ? map['graduationYear'] : null,
-      currentCompany:
-          map['currentCompany'] is String ? map['currentCompany'] : null,
+      graduationyear: map['graduationYear'] is int ? map['graduationYear'] : null,
+      currentcompany: map['currentCompany'] is String ? map['currentCompany'] : null,
       interests: List<String>.from(map['interests'] ?? []),
       skills: List<String>.from(map['skills'] ?? []),
       location: map['location'] is String ? map['location'] : null,
@@ -230,7 +225,7 @@ class UserProfile {
       'interests': interests,
       'skills': skills,
       'location': location,
-      'isVerified': isverified,
+      'isVerified': isVerified,
       'createdAt': createdAt,
     };
   }
@@ -431,7 +426,6 @@ class ProgressTask {
   }
 }
 
-// Providers
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -484,31 +478,42 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<String?> signUp(
-      String email, String password, String name, String role) async {
-    try {
-      final credential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+  // In AuthProvider class
+Future<String?> signUp(String email, String password, String name, String role) async {
+  try {
+    print("STEP 1: Attempting to create user in Firebase Auth...");
+    final credential = await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+    print("SUCCESS: Auth user created. UID: ${credential.user!.uid}");
 
-      final profile = UserProfile(
-        uid: credential.user!.uid,
-        email: email,
-        name: name,
-        role: role,
-        createdAt: DateTime.now(),
-      );
+    final profile = UserProfile(
+      uid: credential.user!.uid,
+      email: email,
+      name: name,
+      role: role,
+      isVerified: false, // Explicitly set for the new document
+      createdAt: DateTime.now(),
+    );
 
-      await _firestore
-          .collection('users')
-          .doc(credential.user!.uid)
-          .set(profile.toMap());
-      return null;
-    } catch (e) {
-      return e.toString();
-    }
+    print("STEP 2: Attempting to create user profile document in Firestore...");
+    await _firestore
+        .collection('users')
+        .doc(credential.user!.uid)
+        .set(profile.toMap());
+    print("SUCCESS: Firestore document created.");
+
+    // The authStateChanges listener will automatically call _loadUserProfile after this
+    return null;
+  } catch (e) {
+    print("---!!! SIGN UP FAILED !!!---");
+    print("The process failed with this error:");
+    print(e.toString());
+    print("-----------------------------");
+    return e.toString();
   }
+}
 
   Future<String?> signIn(String email, String password) async {
     try {
@@ -761,7 +766,6 @@ class MentorshipProvider extends ChangeNotifier {
   }
 }
 
-// UI Screens
 class LoadingScreen extends StatelessWidget {
   const LoadingScreen({Key? key}) : super(key: key);
 
@@ -993,12 +997,34 @@ class _MainScreenState extends State<MainScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final isMentor = authProvider.userProfile?.role == 'mentor';
 
-    final screens = [
-      HomeScreen(onTabChange: _changeTab),
-      const SearchScreen(),
-      if (isMentor) const RequestsScreen() else const MyMentorsScreen(),
-      const ProfileScreen(),
-    ];
+    final List<Widget> screens = isMentor
+        ? [
+            HomeScreen(onTabChange: _changeTab),
+            MenteesScreen(),
+            RequestsScreen(),
+            ProfileScreen(),
+          ]
+        : [
+            HomeScreen(onTabChange: _changeTab),
+            SearchScreen(),
+            MyMentorsScreen(),
+            ProfileScreen(),
+          ];
+          
+    final List<BottomNavigationBarItem> navItems = isMentor
+        ? const [
+            BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'Home'),
+            BottomNavigationBarItem(icon: Icon(Icons.people_alt_rounded), label: 'Mentees'),
+            BottomNavigationBarItem(icon: Icon(Icons.notifications_rounded), label: 'Requests'),
+            BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'Profile'),
+          ]
+        : const [
+            BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'Home'),
+            BottomNavigationBarItem(icon: Icon(Icons.search_rounded), label: 'Explore'),
+            BottomNavigationBarItem(icon: Icon(Icons.school_rounded), label: 'Mentors'),
+            BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'Profile'),
+        ];
+
 
     return Scaffold(
       body: IndexedStack(
@@ -1008,24 +1034,7 @@ class _MainScreenState extends State<MainScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _changeTab,
-        items: [
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.home_filled),
-            label: 'Home',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.search_rounded),
-            label: 'Explore',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(isMentor ? Icons.notifications_rounded : Icons.people_alt_rounded),
-            label: isMentor ? 'Requests' : 'Mentors',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.person_rounded),
-            label: 'Profile',
-          ),
-        ],
+        items: navItems,
       ),
     );
   }
@@ -1137,6 +1146,124 @@ class HomeScreen extends StatelessWidget {
                 ),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class MenteesScreen extends StatelessWidget {
+  const MenteesScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final mentorId = authProvider.user?.uid ?? '';
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Mentees'),
+      ),
+      body: StreamBuilder<List<UserProfile>>(
+        stream: Provider.of<MentorshipProvider>(context).getMatchedMenteesForMentor(mentorId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return const Center(child: Text("Something went wrong fetching mentees."));
+          }
+          final students = snapshot.data ?? [];
+          if (students.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.people_outline_rounded, size: 80, color: Colors.grey.shade300),
+                  const SizedBox(height: 16),
+                  Text('No mentees yet', style: TextStyle(fontSize: 18, color: Colors.grey.shade600)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40.0),
+                    child: Text(
+                      'Accept requests from the Requests tab to see them here.',
+                      style: TextStyle(color: Colors.grey.shade500),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: students.length,
+            itemBuilder: (context, index) {
+              final student = students[index];
+              return _MenteeListCard(student: student, mentorId: mentorId);
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _MenteeListCard extends StatelessWidget {
+  final UserProfile student;
+  final String mentorId;
+
+  const _MenteeListCard({Key? key, required this.student, required this.mentorId}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: customPrimarySwatch.shade100,
+                  child: Text(
+                    student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
+                    style: TextStyle(fontSize: 22, color: customPrimarySwatch.shade700, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(student.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                      Text(student.major ?? 'No major specified', style: TextStyle(color: Colors.grey.shade600)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                  label: const Text('Start Chat'),
+                  onPressed: () {
+                    final provider = Provider.of<MentorshipProvider>(context, listen: false);
+                    final chatId = provider.getChatId(mentorId, student.uid);
+                    Navigator.pushNamed(context, AppRouter.chat, arguments: {
+                      'recipientId': student.uid,
+                      'recipientName': student.name,
+                      'chatId': chatId,
+                    });
+                  },
+                ),
+              ],
+            )
           ],
         ),
       ),
@@ -1257,7 +1384,7 @@ class _UserSummaryCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if(user.isverified)
+                  if(user.isVerified)
                     Icon(Icons.verified_user, color: Colors.blue.shade600, size: 22),
                 ],
               ),
@@ -1548,7 +1675,7 @@ class _MentorDetailScreenState extends State<MentorDetailScreen> {
                         '${widget.mentor.currentcompany}',
                         style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
                       ),
-                    if (widget.mentor.isverified)
+                    if (widget.mentor.isVerified)
                       Padding(
                         padding: const EdgeInsets.only(top: 8.0),
                         child: Chip(
@@ -2331,7 +2458,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 }
 
 class StoriesScreen extends StatefulWidget {
-  const StoriesScreen({Key? key}) : super(key: key);
+  final String? authorId;
+
+  const StoriesScreen({Key? key, this.authorId}) : super(key: key);
 
   @override
   State<StoriesScreen> createState() => _StoriesScreenState();
@@ -2356,10 +2485,13 @@ class _StoriesScreenState extends State<StoriesScreen> {
     final isMentor = authProvider.userProfile?.role == 'mentor';
     final provider = Provider.of<MentorshipProvider>(context, listen: false);
 
+    final isViewingOwnStories = isMentor && widget.authorId != null && widget.authorId == authProvider.user!.uid;
+    final appBarTitle = isViewingOwnStories ? "My Stories" : "Mentorship Stories";
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(isMentor ? 'My Stories' : 'Mentorship Stories'),
-        actions: isMentor ? [
+        title: Text(appBarTitle),
+        actions: isViewingOwnStories ? [
           IconButton(
             icon: const Icon(Icons.add_circle_rounded),
             onPressed: () {
@@ -2383,7 +2515,9 @@ class _StoriesScreenState extends State<StoriesScreen> {
             ),
           Expanded(
             child: StreamBuilder<List<Story>>(
-              stream: provider.getStories(tags: _selectedTags.isEmpty ? null : _selectedTags),
+              stream: widget.authorId != null
+                  ? provider.getStoriesForMentor(widget.authorId!)
+                  : provider.getStories(tags: _selectedTags.isEmpty ? null : _selectedTags),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
