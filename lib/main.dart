@@ -9,7 +9,6 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'firebase_options.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-// NEW: Centralized routing class
 class AppRouter {
   static const String authWrapper = '/';
   static const String main = '/main';
@@ -65,7 +64,7 @@ const MaterialColor customPrimarySwatch = MaterialColor(
     300: Color(0xFFAF8FFF),
     400: Color(0xFF9B77FF),
     500: Color(0xFF875FFF),
-    600: Color(0xFF7B4BFF), // Primary color
+    600: Color(0xFF7B4BFF),
     700: Color(0xFF6A38F7),
     800: Color(0xFF5A26E8),
     900: Color(0xFF4315D3),
@@ -171,7 +170,7 @@ class UserProfile {
   final List<String> skills;
   final String? location;
   final bool isverified;
-  final DateTime createdat;
+  final DateTime createdAt;
 
   UserProfile({
     required this.uid,
@@ -190,7 +189,7 @@ class UserProfile {
   })  : graduationyear = graduationYear,
         currentcompany = currentCompany,
         isverified = isVerified,
-        createdat = createdAt;
+        createdAt = createdAt;
 
   factory UserProfile.fromMap(Map<String, dynamic> map, String uid) {
     DateTime safeCreatedAt;
@@ -232,7 +231,7 @@ class UserProfile {
       'skills': skills,
       'location': location,
       'isVerified': isverified,
-      'createdAt': createdat,
+      'createdAt': createdAt,
     };
   }
 }
